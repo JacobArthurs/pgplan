@@ -20,6 +20,7 @@ Understand query performance regressions and get optimization insights without l
 ## Installation
 
 Not yet published. Clone and run locally:
+
 ```bash
 git clone https://github.com/JacobArthurs/pgplan
 cd pgplan
