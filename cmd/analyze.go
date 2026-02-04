@@ -9,31 +9,56 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// analyzeCmd represents the analyze command
 var analyzeCmd = &cobra.Command{
-	Use:   "analyze",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Use:   "analyze [file]",
+	Short: "Analyze a single query plan",
+	Long: `Analyze a single PostgreSQL query plan and provide optimization insights.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("analyze called")
+Input can be a SQL file, JSON file (EXPLAIN output), or TEXT file (EXPLAIN output).
+Use "-" to read from stdin. If no file is provided, enters interactive mode.
+
+For SQL input, a database connection is required to run EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON).`,
+	Example: `  # Analyze from file
+  pgplan analyze query.sql --db "postgresql://user:pass@localhost/db"
+
+  # Use saved profile
+  pgplan analyze query.sql --profile prod
+
+  # Read from stdin
+  cat query.sql | pgplan analyze - --db "postgresql://user:pass@localhost/db"
+
+  # Interactive mode
+  pgplan analyze`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		db, _ := cmd.Flags().GetString("db")
+		profile, _ := cmd.Flags().GetString("profile")
+		format, _ := cmd.Flags().GetString("format")
+
+		if format != "text" && format != "json" {
+			return fmt.Errorf("invalid format %q: must be \"text\" or \"json\"", format)
+		}
+
+		if len(args) > 0 {
+			fmt.Printf("File: %s\n", args[0])
+		}
+		if db != "" {
+			fmt.Printf("DB: %s\n", db)
+		}
+		if profile != "" {
+			fmt.Printf("Profile: %s\n", profile)
+		}
+
+		fmt.Printf("Format: %s\n", format)
+
+		return nil
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(analyzeCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// analyzeCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// analyzeCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	analyzeCmd.Flags().StringP("db", "d", "", "PostgreSQL connection string")
+	analyzeCmd.Flags().StringP("profile", "p", "", "Use named profile from config")
+	analyzeCmd.Flags().StringP("format", "f", "text", "Output format: text, json")
+	analyzeCmd.MarkFlagsMutuallyExclusive("db", "profile")
 }
