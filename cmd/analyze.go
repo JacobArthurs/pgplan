@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"pgplan/internal/plan"
 
 	"github.com/spf13/cobra"
 )
@@ -19,13 +20,13 @@ Use "-" to read from stdin. If no file is provided, enters interactive mode.
 
 For SQL input, a database connection is required to run EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON).`,
 	Example: `  # Analyze from file
-  pgplan analyze query.sql --db "postgresql://user:pass@localhost/db"
+  pgplan analyze query.sql
 
   # Use saved profile
   pgplan analyze query.sql --profile prod
 
   # Read from stdin
-  cat query.sql | pgplan analyze - --db "postgresql://user:pass@localhost/db"
+  cat query.sql | pgplan analyze -
 
   # Interactive mode
   pgplan analyze`,
@@ -35,21 +36,22 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, BUFFER
 		profile, _ := cmd.Flags().GetString("profile")
 		format, _ := cmd.Flags().GetString("format")
 
+		if profile != "" {
+			return fmt.Errorf("TODO: Implement profile selection")
+		}
+
 		if format != "text" && format != "json" {
 			return fmt.Errorf("invalid output format %q: must be \"text\" or \"json\"", format)
 		}
 
+		var file string
 		if len(args) > 0 {
-			fmt.Printf("File: %s\n", args[0])
-		}
-		if db != "" {
-			fmt.Printf("DB: %s\n", db)
-		}
-		if profile != "" {
-			fmt.Printf("Profile: %s\n", profile)
+			file = args[0]
 		}
 
-		fmt.Printf("Format: %s\n", format)
+		planOutput, _ := plan.Resolve(file, db)
+
+		fmt.Printf("Plan: %+v\n", planOutput)
 
 		return nil
 	},
