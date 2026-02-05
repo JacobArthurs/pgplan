@@ -9,31 +9,32 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Create config file with example template",
+	Long: `Create ~/.config/pgplan/config.yml with an example template.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("init called")
+The config file stores named database connection profiles so you don't need
+to pass connection strings on every invocation. If a config file already exists,
+it will not be overwritten.`,
+	Example: `  # Create default config
+  pgplan init
+
+  # Overwrite existing config
+  pgplan init --force`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		force, _ := cmd.Flags().GetBool("force")
+
+		fmt.Printf("Force: %v\n", force)
+
+		fmt.Println("Creating config at ~/.config/pgplan/config.yml")
+
+		return nil
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// initCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// initCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	initCmd.Flags().BoolP("force", "f", false, "Overwrite existing config file")
 }
