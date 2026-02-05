@@ -4,7 +4,7 @@
 
 - Compare PostgreSQL EXPLAIN plans with semantic understanding
 - Provide CLI-native analysis without browser dependency  
-- Support multiple input formats (SQL, JSON, TEXT)
+- Support multiple input formats (SQL, JSON)
 - Offer actionable optimization recommendations
 
 ## Commands
@@ -22,7 +22,7 @@ pgplan --version                           Show version
 ### Compare Files
 
 - `file1` and `file2` are optional
-- Can be SQL files, JSON files (EXPLAIN output), or TEXT files (EXPLAIN output)
+- Can be SQL files, or JSON files (EXPLAIN output)
 - Either file (but not both) can be `-` to read from stdin
 - Files don't need to be the same type
 - If no files provided, enters interactive mode
@@ -46,9 +46,8 @@ pgplan --version                           Show version
 
 Process each input independently:
 
-- SQL: requires DB connection, wraps query in `EXPLAIN (ANALYZE, FORMAT JSON)` and captures output
+- SQL: requires DB connection, wraps query in `EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON)` and captures output
 - JSON: parse directly
-- EXPLAIN TEXT: parse directly
 
 Then compare the two resulting plans.
 
@@ -63,7 +62,7 @@ pgplan compare old.sql new.sql --db postgres://localhost/mydb
 pgplan compare prod-plan.json new-query.sql --profile dev
 
 # Read one plan from stdin
-psql -c "EXPLAIN (ANALYZE, FORMAT JSON) SELECT ..." | pgplan compare - new.sql --db postgres://localhost/mydb
+psql -c "EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) SELECT ..." | pgplan compare - new.sql --db postgres://localhost/mydb
 pgplan compare old-plan.json - < new-plan.json
 
 # Using default profile
@@ -75,7 +74,7 @@ pgplan compare old.sql new.sql
 ### Analyze File
 
 - `file` is optional
-- Can be a SQL file, JSON file (EXPLAIN output), or TEXT file (EXPLAIN output)
+- Can be a SQL file, or JSON file (EXPLAIN output)
 - Use `-` for stdin
 - If no file provided, enters interactive mode
 
@@ -95,9 +94,8 @@ Same as `pgplan compare`.
 
 Process input:
 
-- SQL: requires DB connection, wraps query in `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)` and captures output
+- SQL: requires DB connection, wraps query in `EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON)` and captures output
 - JSON: parse directly
-- EXPLAIN TEXT: parse directly
 
 Then analyze the plan and provide insights:
 
@@ -138,7 +136,7 @@ pgplan analyze prod-slow-plan.json
 pgplan analyze -
 
 # Pipe from psql
-psql -c "EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT ..." | pgplan analyze -
+psql -c "EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) SELECT ..." | pgplan analyze -
 
 # Using profile
 pgplan analyze query.sql --profile prod

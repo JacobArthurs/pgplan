@@ -16,7 +16,7 @@ var rootCmd = &cobra.Command{
 	Long: `pgplan is a CLI tool for analyzing and comparing PostgreSQL EXPLAIN plans.
 
 It provides actionable optimization insights without requiring a browser.
-Supports SQL, JSON, and TEXT input formats.`,
+Supports SQL, and JSON input formats.`,
 	Example: `  # Analyze a single query
   pgplan analyze query.sql
   

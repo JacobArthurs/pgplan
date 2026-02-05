@@ -14,7 +14,7 @@ var analyzeCmd = &cobra.Command{
 	Short: "Analyze a single query plan",
 	Long: `Analyze a single PostgreSQL query plan and provide optimization insights.
 
-Input can be a SQL file, JSON file (EXPLAIN output), or TEXT file (EXPLAIN output).
+Input can be a SQL file, or JSON file (EXPLAIN output).
 Use "-" to read from stdin. If no file is provided, enters interactive mode.
 
 For SQL input, a database connection is required to run EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON).`,
@@ -36,7 +36,7 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, BUFFER
 		format, _ := cmd.Flags().GetString("format")
 
 		if format != "text" && format != "json" {
-			return fmt.Errorf("invalid format %q: must be \"text\" or \"json\"", format)
+			return fmt.Errorf("invalid output format %q: must be \"text\" or \"json\"", format)
 		}
 
 		if len(args) > 0 {

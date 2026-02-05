@@ -10,12 +10,11 @@ Understand query performance regressions and get optimization insights without l
 
 ## Planned Features
 
-- [ ] EXPLAIN plan parsing (JSON, TEXT formats)
+- [ ] EXPLAIN plan JSON parsing
 - [ ] Intelligent plan comparison with semantic diff
 - [ ] Single plan analysis with recommendations
 - [ ] Interactive mode (paste plans directly)
 - [ ] Connection profiles for multiple databases
-- [ ] Web interface
 
 ## Installation
 

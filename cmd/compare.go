@@ -14,11 +14,11 @@ var compareCmd = &cobra.Command{
 	Short: "Compare two query plans",
 	Long: `Compare two PostgreSQL query plans side-by-side with semantic understanding.
 
-Inputs can be SQL files, JSON files (EXPLAIN output), or TEXT files (EXPLAIN output).
+Inputs can be SQL files, or JSON files (EXPLAIN output).
 Files don't need to be the same type. Either file (but not both) can be "-" to read from stdin.
 If no files are provided, enters interactive mode.
 
-For SQL input, a database connection is required to run EXPLAIN (ANALYZE, FORMAT JSON).`,
+For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON).`,
 	Example: `  # Compare two SQL files
   pgplan compare old.sql new.sql --db "postgresql://user:pass@localhost/db"
 
@@ -29,7 +29,7 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, FORMAT
   pgplan compare prod-plan.json new-query.sql --profile dev
 
   # Read one plan from stdin
-  psql -c "EXPLAIN (ANALYZE, FORMAT JSON) SELECT ..." | pgplan compare - new.sql --db "postgresql://user:pass@localhost/db"
+  cat old.sql |  pgplan compare - new.sql --db "postgresql://user:pass@localhost/db"
 
   # Interactive mode
   pgplan compare`,
@@ -40,7 +40,7 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, FORMAT
 		format, _ := cmd.Flags().GetString("format")
 
 		if format != "text" && format != "json" {
-			return fmt.Errorf("invalid format %q: must be \"text\" or \"json\"", format)
+			return fmt.Errorf("invalid output format %q: must be \"text\" or \"json\"", format)
 		}
 
 		if len(args) > 0 {
