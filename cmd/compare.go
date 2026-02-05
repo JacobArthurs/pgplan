@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"pgplan/internal/plan"
 
 	"github.com/spf13/cobra"
 )
@@ -20,16 +21,16 @@ If no files are provided, enters interactive mode.
 
 For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON).`,
 	Example: `  # Compare two SQL files
-  pgplan compare old.sql new.sql --db "postgresql://user:pass@localhost/db"
+  pgplan compare old.sql new.sql
 
   # Use saved profile
-  pgplan compare old.sql new.sql --profile prod
+  pgplan compare old.sql new.sql
 
   # Mix input types
-  pgplan compare prod-plan.json new-query.sql --profile dev
+  pgplan compare prod-plan.json new-query.sql
 
   # Read one plan from stdin
-  cat old.sql |  pgplan compare - new.sql --db "postgresql://user:pass@localhost/db"
+  cat old.sql |  pgplan compare - new.sql
 
   # Interactive mode
   pgplan compare`,
@@ -39,24 +40,36 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 		profile, _ := cmd.Flags().GetString("profile")
 		format, _ := cmd.Flags().GetString("format")
 
+		if profile != "" {
+			return fmt.Errorf("TODO: Implement profile selection")
+		}
+
 		if format != "text" && format != "json" {
 			return fmt.Errorf("invalid output format %q: must be \"text\" or \"json\"", format)
 		}
 
+		var oldFile string
 		if len(args) > 0 {
-			fmt.Printf("File1: %s\n", args[0])
-		}
-		if len(args) > 1 {
-			fmt.Printf("File2: %s\n", args[1])
-		}
-		if db != "" {
-			fmt.Printf("DB: %s\n", db)
-		}
-		if profile != "" {
-			fmt.Printf("Profile: %s\n", profile)
+			oldFile = args[0]
 		}
 
-		fmt.Printf("Format: %s\n", format)
+		var newFile string
+		if len(args) > 1 {
+			newFile = args[1]
+		}
+
+		oldPlanOutput, err := plan.Resolve(oldFile, db)
+		if err != nil {
+			return fmt.Errorf("resolving old plan: %w", err)
+		}
+
+		newPlanOutput, err := plan.Resolve(newFile, db)
+		if err != nil {
+			return fmt.Errorf("resolving new plan: %w", err)
+		}
+
+		fmt.Printf("Old plan: %+v\n", oldPlanOutput)
+		fmt.Printf("New plan: %+v\n", newPlanOutput)
 
 		return nil
 	},
