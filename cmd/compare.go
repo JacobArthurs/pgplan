@@ -58,14 +58,14 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 			newFile = args[1]
 		}
 
-		oldPlanOutput, err := plan.Resolve(oldFile, db)
+		oldPlanOutput, err := plan.Resolve(oldFile, db, "old plan ")
 		if err != nil {
-			return fmt.Errorf("resolving old plan: %w", err)
+			return err
 		}
 
-		newPlanOutput, err := plan.Resolve(newFile, db)
+		newPlanOutput, err := plan.Resolve(newFile, db, "new plan ")
 		if err != nil {
-			return fmt.Errorf("resolving new plan: %w", err)
+			return err
 		}
 
 		fmt.Printf("Old plan: %+v\n", oldPlanOutput)

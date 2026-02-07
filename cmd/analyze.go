@@ -49,7 +49,7 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, BUFFER
 			file = args[0]
 		}
 
-		planOutput, _ := plan.Resolve(file, db)
+		planOutput, _ := plan.Resolve(file, db, "")
 
 		fmt.Printf("Plan: %+v\n", planOutput)
 

@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-func Resolve(input string, dbConn string) ([]ExplainOutput, error) {
-	data, err := readInput(input)
+func Resolve(input string, dbConn string, label string) ([]ExplainOutput, error) {
+	data, err := readInput(input, label)
 	if err != nil {
 		return nil, err
 	}
@@ -37,14 +37,14 @@ EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) <your query>
 
 Then provide the complete JSON output.`)
 	default:
-		return nil, fmt.Errorf("unable to detect input type: expected JSON plan, SQL query, or .json/.sql file")
+		return nil, fmt.Errorf("unable to detect %sinput type: expected JSON plan, SQL query, or .json/.sql file", label)
 	}
 }
 
-func readInput(input string) ([]byte, error) {
+func readInput(input string, label string) ([]byte, error) {
 	switch input {
 	case "":
-		return readInteractive()
+		return readInteractive(label)
 	case "-":
 		return io.ReadAll(os.Stdin)
 	default:
@@ -52,12 +52,12 @@ func readInput(input string) ([]byte, error) {
 	}
 }
 
-func readInteractive() ([]byte, error) {
+func readInteractive(label string) ([]byte, error) {
 	if runtime.GOOS == "windows" {
-		fmt.Println("Paste EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) output or SQL query:")
+		fmt.Printf("Paste %sEXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) output or SQL query:", label)
 		fmt.Println("End with Ctrl+Z then Enter on a new line")
 	} else {
-		fmt.Println("Paste EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) output or SQL query:")
+		fmt.Printf("Paste %sEXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) output or SQL query:", label)
 		fmt.Println("End with Ctrl+D")
 	}
 
