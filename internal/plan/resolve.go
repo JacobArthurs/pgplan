@@ -29,7 +29,7 @@ func Resolve(input string, dbConn string, label string) ([]ExplainOutput, error)
 		if dbConn == "" {
 			return nil, fmt.Errorf("SQL input requires a database connection")
 		}
-		return nil, fmt.Errorf("TODO: Execute not implemented")
+		return Execute(dbConn, string(data))
 	case "text":
 		return nil, fmt.Errorf(`text format not supported - use JSON format:
 
