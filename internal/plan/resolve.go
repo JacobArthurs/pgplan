@@ -68,7 +68,6 @@ func readInteractive(label string) ([]byte, error) {
 
 	trimmed := strings.TrimSpace(string(data))
 
-	// Detect common mistakes
 	if (strings.HasPrefix(trimmed, "[") ||
 		strings.HasPrefix(trimmed, "{")) &&
 		!json.Valid(data) {
@@ -79,7 +78,6 @@ func readInteractive(label string) ([]byte, error) {
 }
 
 func detectType(data []byte, filename string) string {
-	// Use file extensions
 	if strings.HasSuffix(filename, ".json") {
 		return "json"
 	}
@@ -90,7 +88,6 @@ func detectType(data []byte, filename string) string {
 		return "text"
 	}
 
-	// Use file content
 	trimmed := strings.TrimSpace(string(data))
 
 	if strings.HasPrefix(trimmed, "[") || strings.HasPrefix(trimmed, "{") {
@@ -105,7 +102,8 @@ func detectType(data []byte, filename string) string {
 		strings.HasPrefix(strings.ToUpper(trimmed), "WITH") ||
 		strings.HasPrefix(strings.ToUpper(trimmed), "INSERT") ||
 		strings.HasPrefix(strings.ToUpper(trimmed), "UPDATE") ||
-		strings.HasPrefix(strings.ToUpper(trimmed), "DELETE") {
+		strings.HasPrefix(strings.ToUpper(trimmed), "DELETE") ||
+		strings.HasPrefix(strings.ToUpper(trimmed), "EXPLAIN") {
 		return "sql"
 	}
 
