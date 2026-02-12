@@ -9,36 +9,46 @@ import (
 	"strings"
 )
 
-func Resolve(input string, dbConn string, label string) ([]ExplainOutput, error) {
+func Resolve(input string, dbConn string, label string) (ExplainOutput, error) {
 	data, err := readInput(input, label)
 	if err != nil {
-		return nil, err
+		return ExplainOutput{}, err
 	}
 
 	inputType := detectType(data, input)
 
+	var plans []ExplainOutput
+
 	switch inputType {
 	case "json":
-		return ParseJSONPlan(data)
+		plans, err = ParseJSONPlan(data)
 	case "sql":
 		trimmed := strings.TrimSpace(string(data))
 		if strings.HasPrefix(strings.ToUpper(trimmed), "EXPLAIN") {
-			return nil, fmt.Errorf("input should not include EXPLAIN prefix - provide the raw query only")
+			return ExplainOutput{}, fmt.Errorf("input should not include EXPLAIN prefix - provide the raw query only")
 		}
 
 		if dbConn == "" {
-			return nil, fmt.Errorf("SQL input requires a database connection")
+			return ExplainOutput{}, fmt.Errorf("SQL input requires a database connection")
 		}
-		return Execute(dbConn, string(data))
+		plans, err = Execute(dbConn, string(data))
 	case "text":
-		return nil, fmt.Errorf(`text format not supported - use JSON format:
+		return ExplainOutput{}, fmt.Errorf(`text format not supported - use JSON format:
 
 EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) <your query>
 
 Then provide the complete JSON output.`)
 	default:
-		return nil, fmt.Errorf("unable to detect %sinput type: expected JSON plan, SQL query, or .json/.sql file", label)
+		return ExplainOutput{}, fmt.Errorf("unable to detect %sinput type: expected JSON plan, SQL query, or .json/.sql file", label)
 	}
+
+	if err != nil {
+		return ExplainOutput{}, err
+	}
+	if len(plans) == 0 {
+		return ExplainOutput{}, fmt.Errorf("no query plan found in %sinput", label)
+	}
+	return plans[0], nil
 }
 
 func readInput(input string, label string) ([]byte, error) {
@@ -53,12 +63,11 @@ func readInput(input string, label string) ([]byte, error) {
 }
 
 func readInteractive(label string) ([]byte, error) {
+	fmt.Printf("Paste %sEXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) output or SQL query", label)
 	if runtime.GOOS == "windows" {
-		fmt.Printf("Paste %sEXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) output or SQL query:", label)
-		fmt.Println("End with Ctrl+Z then Enter on a new line")
+		fmt.Print(" (Ctrl+Z, Enter to submit)\n")
 	} else {
-		fmt.Printf("Paste %sEXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) output or SQL query:", label)
-		fmt.Println("End with Ctrl+D")
+		fmt.Print(" (Ctrl+D to submit)\n")
 	}
 
 	data, err := io.ReadAll(os.Stdin)
