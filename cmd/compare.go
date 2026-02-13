@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"fmt"
+	"pgplan/internal/comparator"
 	"pgplan/internal/plan"
 
 	"github.com/spf13/cobra"
@@ -39,6 +40,7 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 		db, _ := cmd.Flags().GetString("db")
 		profile, _ := cmd.Flags().GetString("profile")
 		format, _ := cmd.Flags().GetString("format")
+		threshold, _ := cmd.Flags().GetFloat64("threshold")
 
 		if profile != "" {
 			return fmt.Errorf("TODO: Implement profile selection")
@@ -46,6 +48,14 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 
 		if format != "text" && format != "json" {
 			return fmt.Errorf("invalid output format %q: must be \"text\" or \"json\"", format)
+		}
+
+		if threshold < 0 {
+			return fmt.Errorf("threshold must be non-negative, got %.2f", threshold)
+		}
+
+		if threshold > 100 {
+			return fmt.Errorf("threshold must be <= 100%%, got %.2f", threshold)
 		}
 
 		var oldFile string
@@ -68,8 +78,10 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 			return err
 		}
 
-		fmt.Printf("Old plan: %+v\n", oldPlanOutput)
-		fmt.Printf("New plan: %+v\n", newPlanOutput)
+		cmp := &comparator.Comparator{Threshold: threshold}
+		result := cmp.Compare(oldPlanOutput, newPlanOutput)
+
+		fmt.Println(result)
 
 		return nil
 	},
@@ -80,5 +92,6 @@ func init() {
 	compareCmd.Flags().StringP("db", "d", "", "PostgreSQL connection string")
 	compareCmd.Flags().StringP("profile", "p", "", "Use named profile from config")
 	compareCmd.Flags().StringP("format", "f", "text", "Output format: text, json")
+	compareCmd.Flags().Float64P("threshold", "t", 5.0, "Percent change threshold for significance (default 5%)")
 	compareCmd.MarkFlagsMutuallyExclusive("db", "profile")
 }
