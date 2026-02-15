@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	MinRowsForSeqScanWarning  = 1000
+	MinRowsForSeqScanWarning  = 10000
 	MinRowsForCriticalScan    = 100000
 	MinRowsForCriticalSeqScan = 1000000
 	MinRowsForLowSelectivity  = 10000
@@ -31,7 +31,10 @@ const (
 	JoinFilterRemovalWarning  = 10000
 	JoinFilterRemovalCritical = 1000000
 
-	EstimateMismatchRatio = 3.0
+	EstimateMismatchRatio      = 3.0
+	MinRowsForEstimateMismatch = 100
+	WideRowThreshold           = 2000
+	WideRowMinRows             = 10000
 )
 
 // childIdx is the node's index within parent.Plans (-1 for root).
@@ -43,14 +46,16 @@ var defaultRules = []Rule{
 	checkSeqScanStandalone,
 	checkBitmapHeapRecheck,
 	checkNestedLoopHighLoops,
+	checkSubPlanHighLoops,
 	checkSortSpill,
 	checkHashSpill,
 	checkTempBlocks,
 	checkWorkerMismatch,
+	checkParallelOverhead,
 	checkLargeJoinFilterRemoval,
 	checkMaterializeHighLoops,
-	checkRedundantSort,
 	checkIndexScanLowSelectivity,
+	checkWideRows,
 }
 
 func checkIndexScanFilterInefficiency(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
@@ -235,19 +240,19 @@ func checkBitmapHeapRecheck(node *plan.PlanNode, parent *plan.PlanNode, childIdx
 	if node.NodeType != "Bitmap Heap Scan" {
 		return nil
 	}
-	if node.RowsRemovedByIndexRecheck == 0 {
+	if node.LossyHeapBlocks == 0 {
 		return nil
 	}
 
-	total := node.ActualRows + node.RowsRemovedByIndexRecheck
-	recheckPct := float64(node.RowsRemovedByIndexRecheck) / float64(total) * 100
+	totalBlocks := node.ExactHeapBlocks + node.LossyHeapBlocks
+	lossyPct := float64(node.LossyHeapBlocks) / float64(totalBlocks) * 100
 
-	if recheckPct < RecheckWarningPct {
+	if lossyPct < RecheckWarningPct {
 		return nil
 	}
 
 	severity := Warning
-	if recheckPct > RecheckCriticalPct {
+	if lossyPct > RecheckCriticalPct {
 		severity = Critical
 	}
 
@@ -255,9 +260,9 @@ func checkBitmapHeapRecheck(node *plan.PlanNode, parent *plan.PlanNode, childIdx
 		Severity: severity,
 		NodeType: node.NodeType,
 		Relation: node.RelationName,
-		Description: fmt.Sprintf("Bitmap Heap Scan on %s lost %.1f%% of rows to recheck (%d of %d) due to lossy bitmap pages",
-			node.RelationName, recheckPct, node.RowsRemovedByIndexRecheck, total),
-		Suggestion: "Increase work_mem to reduce lossy pages, or consider a more selective index",
+		Description: fmt.Sprintf("Bitmap Heap Scan on %s has %.1f%% lossy pages (%d of %d blocks) — bitmap exceeded work_mem",
+			node.RelationName, lossyPct, node.LossyHeapBlocks, totalBlocks),
+		Suggestion: "Increase work_mem to keep bitmap exact, or use a more selective index to reduce bitmap size",
 	}}
 }
 
@@ -397,57 +402,6 @@ func checkMaterializeHighLoops(node *plan.PlanNode, parent *plan.PlanNode, child
 	}}
 }
 
-func checkRedundantSort(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
-	if node.NodeType != "Sort" {
-		return nil
-	}
-	if len(node.Plans) == 0 || len(node.SortKey) == 0 {
-		return nil
-	}
-
-	child := &node.Plans[0]
-
-	if child.NodeType != "Index Scan" && child.NodeType != "Index Only Scan" {
-		return nil
-	}
-	if child.IndexName == "" {
-		return nil
-	}
-
-	// Multi-column sorts are harder to verify as redundant
-	if len(node.SortKey) > 1 {
-		return nil
-	}
-
-	sortCol := extractColumnFromSortKey(node.SortKey[0])
-	indexCols := ExtractConditionColumns(child.IndexCond)
-
-	if sortCol == "" || len(indexCols) == 0 {
-		return nil
-	}
-
-	isRedundant := false
-	for _, ic := range indexCols {
-		if strings.EqualFold(sortCol, ic) {
-			isRedundant = true
-			break
-		}
-	}
-
-	if !isRedundant {
-		return nil
-	}
-
-	return []Finding{{
-		Severity: Info,
-		NodeType: node.NodeType,
-		Relation: child.RelationName,
-		Description: fmt.Sprintf("Sort on %s may be redundant — child Index Scan using %s already provides order on %s",
-			sortCol, child.IndexName, sortCol),
-		Suggestion: "Verify index column order matches sort requirements; PG may be able to skip this sort with correct index ordering",
-	}}
-}
-
 func checkIndexScanLowSelectivity(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.NodeType != "Index Scan" && node.NodeType != "Index Only Scan" {
 		return nil
@@ -486,11 +440,96 @@ func checkIndexScanLowSelectivity(node *plan.PlanNode, parent *plan.PlanNode, ch
 	}}
 }
 
+func checkSubPlanHighLoops(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+	if node.ParentRelationship != "SubPlan" {
+		return nil
+	}
+	if node.ActualLoops < NestedLoopWarningLoops {
+		return nil
+	}
+
+	severity := Warning
+	if node.ActualLoops > NestedLoopCriticalLoops {
+		severity = Critical
+	}
+
+	totalTime := node.ActualTotalTime * float64(node.ActualLoops)
+
+	return []Finding{{
+		Severity: severity,
+		NodeType: node.NodeType,
+		Relation: node.RelationName,
+		Description: fmt.Sprintf("Correlated SubPlan executes %d times (%.1fms total)",
+			node.ActualLoops, totalTime),
+		Suggestion: "Rewrite as a JOIN or lateral join to avoid per-row subquery execution",
+	}}
+}
+
+func checkWideRows(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+	if node.PlanWidth < WideRowThreshold {
+		return nil
+	}
+
+	rows := node.ActualRows
+	if rows == 0 {
+		rows = node.PlanRows
+	}
+	if rows < WideRowMinRows {
+		return nil
+	}
+
+	return []Finding{{
+		Severity:    Info,
+		NodeType:    node.NodeType,
+		Relation:    node.RelationName,
+		Description: fmt.Sprintf("%s produces %d rows at %d bytes wide", nodeLabel(node), rows, node.PlanWidth),
+		Suggestion:  "Select only needed columns to reduce memory usage and improve cache efficiency",
+	}}
+}
+
+func checkParallelOverhead(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+	if node.NodeType != "Gather" && node.NodeType != "Gather Merge" {
+		return nil
+	}
+	if len(node.Plans) == 0 {
+		return nil
+	}
+
+	child := &node.Plans[0]
+	if child.ActualLoops == 0 {
+		return nil
+	}
+
+	// Total worker time = per-loop time * loops (loops = workers launched + leader)
+	workerTime := child.ActualTotalTime * float64(child.ActualLoops)
+	gatherTime := node.ActualTotalTime
+
+	// If gather takes longer than worker time, parallelism hurt
+	if gatherTime <= workerTime {
+		return nil
+	}
+
+	overhead := gatherTime - workerTime
+
+	return []Finding{{
+		Severity: Info,
+		NodeType: node.NodeType,
+		Relation: node.RelationName,
+		Description: fmt.Sprintf("%s overhead (%.1fms) exceeds parallel benefit (workers: %.1fms, gather: %.1fms)",
+			node.NodeType, overhead, workerTime, gatherTime),
+		Suggestion: "Parallel execution not beneficial here; consider SET max_parallel_workers_per_gather = 0 for this query",
+	}}
+}
+
 func ConsolidateEstimateMismatches(root *plan.PlanNode, ctx *PlanContext) []Finding {
 	var findings []Finding
 
 	for _, cte := range ctx.CTEs {
 		if cte.ActualRows == 0 || cte.EstimatedRows == 0 {
+			continue
+		}
+
+		if cte.ActualRows < MinRowsForEstimateMismatch {
 			continue
 		}
 
@@ -677,19 +716,6 @@ func innerNodeLabel(node *plan.PlanNode) string {
 		label += " using " + node.IndexName
 	}
 	return label
-}
-
-func extractColumnFromSortKey(sortKey string) string {
-	s := strings.TrimSpace(sortKey)
-	for _, suffix := range []string{" DESC", " ASC", " NULLS FIRST", " NULLS LAST"} {
-		s = strings.TrimSuffix(s, suffix)
-	}
-	s = strings.TrimSpace(s)
-
-	if idx := strings.LastIndex(s, "."); idx >= 0 {
-		return s[idx+1:]
-	}
-	return s
 }
 
 func dedup(items []string) []string {
