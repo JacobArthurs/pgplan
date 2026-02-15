@@ -10,6 +10,8 @@ import (
 
 const configFileName = "profiles.yaml"
 
+var configDirFunc = configDir
+
 type Profile struct {
 	Name    string `yaml:"name"`
 	ConnStr string `yaml:"conn_str"`
@@ -141,7 +143,7 @@ func configDir() (string, error) {
 }
 
 func configPath() (string, error) {
-	dir, err := configDir()
+	dir, err := configDirFunc()
 	if err != nil {
 		return "", err
 	}
@@ -149,7 +151,7 @@ func configPath() (string, error) {
 }
 
 func ensureConfigDir() error {
-	dir, err := configDir()
+	dir, err := configDirFunc()
 	if err != nil {
 		return err
 	}
