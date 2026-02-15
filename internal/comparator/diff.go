@@ -53,6 +53,15 @@ func (c *Comparator) diffNodes(old, new *plan.PlanNode) NodeDelta {
 	delta.OldHashBatches = old.HashBatches
 	delta.NewHashBatches = new.HashBatches
 
+	delta.OldFilter = old.Filter
+	delta.NewFilter = new.Filter
+
+	delta.OldIndexCond = old.IndexCond
+	delta.NewIndexCond = new.IndexCond
+
+	delta.OldIndexName = old.IndexName
+	delta.NewIndexName = new.IndexName
+
 	if delta.ChangeType == Modified && !c.isSignificant(delta) {
 		delta.ChangeType = NoChange
 	}
@@ -131,6 +140,15 @@ func (c *Comparator) isSignificant(d NodeDelta) bool {
 		return true
 	}
 	if d.OldSharedRead != d.NewSharedRead {
+		return true
+	}
+	if d.OldFilter != d.NewFilter {
+		return true
+	}
+	if d.OldIndexCond != d.NewIndexCond {
+		return true
+	}
+	if d.OldIndexName != d.NewIndexName {
 		return true
 	}
 	return false

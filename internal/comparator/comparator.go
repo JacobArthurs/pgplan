@@ -26,6 +26,12 @@ func (c *Comparator) Compare(old, new plan.ExplainOutput) ComparisonResult {
 
 		OldPlanningTime: old.PlanningTime,
 		NewPlanningTime: new.PlanningTime,
+		PlanningDir:     c.direction(old.PlanningTime, new.PlanningTime, true),
+
+		OldSharedRead: old.Plan.SharedReadBlocks,
+		NewSharedRead: new.Plan.SharedReadBlocks,
+		OldSharedHit:  old.Plan.SharedHitBlocks,
+		NewSharedHit:  new.Plan.SharedHitBlocks,
 	}
 
 	countChanges(&rootDelta, &summary)

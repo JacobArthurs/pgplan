@@ -83,6 +83,15 @@ type NodeDelta struct {
 	OldHashBatches int
 	NewHashBatches int
 
+	OldFilter string
+	NewFilter string
+
+	OldIndexCond string
+	NewIndexCond string
+
+	OldIndexName string
+	NewIndexName string
+
 	Children []NodeDelta
 }
 
@@ -106,9 +115,15 @@ type Summary struct {
 
 	OldPlanningTime float64
 	NewPlanningTime float64
+	PlanningDir     Direction
 
 	NodesAdded       int
 	NodesRemoved     int
 	NodesModified    int
 	NodesTypeChanged int
+
+	OldSharedRead int64
+	NewSharedRead int64
+	OldSharedHit  int64
+	NewSharedHit  int64
 }

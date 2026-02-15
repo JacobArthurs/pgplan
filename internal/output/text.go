@@ -84,7 +84,10 @@ func RenderComparisonText(w io.Writer, result comparator.ComparisonResult) error
 		tw.printf("  Execution Time: %s\n", formatDelta(s.OldExecutionTime, s.NewExecutionTime, s.TimePct, s.TimeDir, "%.3f ms"))
 	}
 	if s.OldPlanningTime > 0 || s.NewPlanningTime > 0 {
-		tw.printf("  Planning Time:  %.3f ms → %.3f ms\n", s.OldPlanningTime, s.NewPlanningTime)
+		tw.printf("  Planning Time:  %s\n", formatDelta(s.OldPlanningTime, s.NewPlanningTime, pctChange(s.OldPlanningTime, s.NewPlanningTime), s.PlanningDir, "%.3f ms"))
+	}
+	if s.OldSharedHit > 0 || s.NewSharedHit > 0 || s.OldSharedRead > 0 || s.NewSharedRead > 0 {
+		tw.printf("  Buffers:        hit %d→%d, read %d→%d\n", s.OldSharedHit, s.NewSharedHit, s.OldSharedRead, s.NewSharedRead)
 	}
 	tw.printf("\n")
 
@@ -102,6 +105,8 @@ func RenderComparisonText(w io.Writer, result comparator.ComparisonResult) error
 	for _, delta := range result.Deltas {
 		tw.renderDelta(delta, 0)
 	}
+
+	tw.renderVerdict(s)
 
 	return tw.err
 }
@@ -142,6 +147,14 @@ func (tw *textWriter) renderDelta(d comparator.NodeDelta, depth int) {
 		if d.OldTime > 0 || d.NewTime > 0 {
 			tw.renderMetricLine(indent, "time", d.OldTime, d.NewTime, d.TimePct, d.TimeDir, "%.3f ms")
 		}
+		if d.OldRows != d.NewRows {
+			tw.renderMetricLineInt(indent, "rows", d.OldRows, d.NewRows, d.RowsPct)
+		}
+		tw.renderFilterChange(indent, d)
+		tw.renderIndexCondChange(indent, d)
+		tw.renderIndexNameChange(indent, d)
+		tw.renderBufferChanges(indent, d)
+		tw.renderSpillChanges(indent, d)
 
 	case comparator.Modified:
 		tw.printf("%s%s~ %s%s\n", indent, colorYellow, nodeLabel(d), colorReset)
@@ -152,6 +165,9 @@ func (tw *textWriter) renderDelta(d comparator.NodeDelta, depth int) {
 		if d.OldRows != d.NewRows {
 			tw.renderMetricLineInt(indent, "rows", d.OldRows, d.NewRows, d.RowsPct)
 		}
+		tw.renderFilterChange(indent, d)
+		tw.renderIndexCondChange(indent, d)
+		tw.renderIndexNameChange(indent, d)
 		tw.renderBufferChanges(indent, d)
 		tw.renderSpillChanges(indent, d)
 	}
@@ -171,6 +187,32 @@ func (tw *textWriter) renderMetricLine(indent, label string, oldVal, newVal, pct
 
 func (tw *textWriter) renderMetricLineInt(indent, label string, oldVal, newVal int64, pct float64) {
 	tw.printf("%s  %s: %d → %d (%+.1f%%)\n", indent, label, oldVal, newVal, pct)
+}
+
+func (tw *textWriter) renderFilterChange(indent string, d comparator.NodeDelta) {
+	if d.OldFilter == d.NewFilter {
+		return
+	}
+	if d.OldFilter == "" {
+		tw.printf("%s  %sfilter added: %s%s\n", indent, colorYellow, d.NewFilter, colorReset)
+	} else if d.NewFilter == "" {
+		tw.printf("%s  %sfilter removed: %s%s\n", indent, colorGreen, d.OldFilter, colorReset)
+	} else {
+		tw.printf("%s  %sfilter: %s → %s%s\n", indent, colorYellow, d.OldFilter, d.NewFilter, colorReset)
+	}
+}
+
+func (tw *textWriter) renderIndexCondChange(indent string, d comparator.NodeDelta) {
+	if d.OldIndexCond == d.NewIndexCond {
+		return
+	}
+	if d.OldIndexCond == "" {
+		tw.printf("%s  %sindex added: %s%s\n", indent, colorYellow, d.NewIndexCond, colorReset)
+	} else if d.NewIndexCond == "" {
+		tw.printf("%s  %sindex removed: %s%s\n", indent, colorGreen, d.OldIndexCond, colorReset)
+	} else {
+		tw.printf("%s  %sindex: %s → %s%s\n", indent, colorYellow, d.OldIndexCond, d.NewIndexCond, colorReset)
+	}
 }
 
 func (tw *textWriter) renderBufferChanges(indent string, d comparator.NodeDelta) {
@@ -232,6 +274,43 @@ func dirArrow(d comparator.Direction) string {
 		return "↑"
 	default:
 		return ""
+	}
+}
+
+func pctChange(old, new float64) float64 {
+	if old == 0 {
+		if new == 0 {
+			return 0
+		}
+		return 100
+	}
+	return ((new - old) / old) * 100
+}
+
+func (tw *textWriter) renderIndexNameChange(indent string, d comparator.NodeDelta) {
+	if d.OldIndexName == d.NewIndexName {
+		return
+	}
+	if d.OldIndexName == "" {
+		tw.printf("%s  %sindex added: %s%s\n", indent, colorGreen, d.NewIndexName, colorReset)
+	} else if d.NewIndexName == "" {
+		tw.printf("%s  %sindex removed: %s%s\n", indent, colorRed, d.OldIndexName, colorReset)
+	} else {
+		tw.printf("%s  %sindex: %s → %s%s\n", indent, colorYellow, d.OldIndexName, d.NewIndexName, colorReset)
+	}
+}
+
+func (tw *textWriter) renderVerdict(s comparator.Summary) {
+	if s.TimeDir == comparator.Improved && s.CostDir == comparator.Improved {
+		tw.printf("\n%sVerdict: faster and cheaper%s\n", colorGreen, colorReset)
+	} else if s.TimeDir == comparator.Regressed && s.CostDir == comparator.Regressed {
+		tw.printf("\n%sVerdict: slower and more expensive%s\n", colorRed, colorReset)
+	} else if s.TimeDir == comparator.Improved {
+		tw.printf("\n%sVerdict: faster but higher estimated cost%s\n", colorYellow, colorReset)
+	} else if s.CostDir == comparator.Improved {
+		tw.printf("\n%sVerdict: cheaper but slower execution%s\n", colorYellow, colorReset)
+	} else {
+		tw.printf("\nVerdict: no significant change\n")
 	}
 }
 
