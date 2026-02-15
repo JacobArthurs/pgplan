@@ -1,4 +1,12 @@
 package output
 
-// TODO: Implement structured JSON output for analysis and comparison results.
-// This enables machine-readable output for piping to other tools or programmatic consumption.
+import (
+	"encoding/json"
+	"io"
+)
+
+func RenderJSON(w io.Writer, v any) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return enc.Encode(v)
+}

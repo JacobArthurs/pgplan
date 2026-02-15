@@ -5,7 +5,9 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"pgplan/internal/comparator"
+	"pgplan/internal/output"
 	"pgplan/internal/plan"
 
 	"github.com/spf13/cobra"
@@ -81,7 +83,12 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 		cmp := &comparator.Comparator{Threshold: threshold}
 		result := cmp.Compare(oldPlanOutput, newPlanOutput)
 
-		fmt.Println(result)
+		switch format {
+		case "json":
+			return output.RenderJSON(os.Stdout, result)
+		case "text":
+			return output.RenderComparisonText(os.Stdout, result)
+		}
 
 		return nil
 	},

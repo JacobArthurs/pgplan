@@ -5,7 +5,9 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"pgplan/internal/analyzer"
+	"pgplan/internal/output"
 	"pgplan/internal/plan"
 
 	"github.com/spf13/cobra"
@@ -57,7 +59,12 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, BUFFER
 
 		result := analyzer.Analyze(planOutput)
 
-		fmt.Println(result)
+		switch format {
+		case "json":
+			return output.RenderJSON(os.Stdout, result)
+		case "text":
+			return output.RenderAnalysisText(os.Stdout, result)
+		}
 
 		return nil
 	},
