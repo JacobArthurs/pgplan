@@ -9,6 +9,7 @@ import (
 	"pgplan/internal/comparator"
 	"pgplan/internal/output"
 	"pgplan/internal/plan"
+	"pgplan/internal/profile"
 
 	"github.com/spf13/cobra"
 )
@@ -40,13 +41,9 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 	Args: cobra.MaximumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		db, _ := cmd.Flags().GetString("db")
-		profile, _ := cmd.Flags().GetString("profile")
+		profileName, _ := cmd.Flags().GetString("profile")
 		format, _ := cmd.Flags().GetString("format")
 		threshold, _ := cmd.Flags().GetFloat64("threshold")
-
-		if profile != "" {
-			return fmt.Errorf("TODO: Implement profile selection")
-		}
 
 		if format != "text" && format != "json" {
 			return fmt.Errorf("invalid output format %q: must be \"text\" or \"json\"", format)
@@ -60,6 +57,11 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 			return fmt.Errorf("threshold must be <= 100%%, got %.2f", threshold)
 		}
 
+		connStr, err := profile.ResolveConnStr(db, profileName)
+		if err != nil {
+			return err
+		}
+
 		var oldFile string
 		if len(args) > 0 {
 			oldFile = args[0]
@@ -70,12 +72,12 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 			newFile = args[1]
 		}
 
-		oldPlanOutput, err := plan.Resolve(oldFile, db, "old plan ")
+		oldPlanOutput, err := plan.Resolve(oldFile, connStr, "old plan ")
 		if err != nil {
 			return err
 		}
 
-		newPlanOutput, err := plan.Resolve(newFile, db, "new plan ")
+		newPlanOutput, err := plan.Resolve(newFile, connStr, "new plan ")
 		if err != nil {
 			return err
 		}

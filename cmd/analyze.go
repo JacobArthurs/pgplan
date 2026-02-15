@@ -9,6 +9,7 @@ import (
 	"pgplan/internal/analyzer"
 	"pgplan/internal/output"
 	"pgplan/internal/plan"
+	"pgplan/internal/profile"
 
 	"github.com/spf13/cobra"
 )
@@ -36,15 +37,16 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, BUFFER
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		db, _ := cmd.Flags().GetString("db")
-		profile, _ := cmd.Flags().GetString("profile")
+		profileName, _ := cmd.Flags().GetString("profile")
 		format, _ := cmd.Flags().GetString("format")
-
-		if profile != "" {
-			return fmt.Errorf("TODO: Implement profile selection")
-		}
 
 		if format != "text" && format != "json" {
 			return fmt.Errorf("invalid output format %q: must be \"text\" or \"json\"", format)
+		}
+
+		connStr, err := profile.ResolveConnStr(db, profileName)
+		if err != nil {
+			return err
 		}
 
 		var file string
@@ -52,7 +54,7 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, BUFFER
 			file = args[0]
 		}
 
-		planOutput, err := plan.Resolve(file, db, "")
+		planOutput, err := plan.Resolve(file, connStr, "")
 		if err != nil {
 			return err
 		}
