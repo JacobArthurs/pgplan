@@ -20,7 +20,7 @@ func Execute(dbConn string, sql string) ([]ExplainOutput, error) {
 	if err != nil {
 		return nil, fmt.Errorf("beginning transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	query := "EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) " + sql
 
