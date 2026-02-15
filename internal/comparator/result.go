@@ -6,6 +6,8 @@ const (
 	Unchanged Direction = 0
 	Improved  Direction = 1
 	Regressed Direction = 2
+
+	SignificanceThresholdPct = 1.0
 )
 
 func (d Direction) String() string {
@@ -70,13 +72,26 @@ type NodeDelta struct {
 	RowsPct   float64
 	RowsDir   Direction
 
-	OldSharedHit  int64
-	NewSharedHit  int64
-	OldSharedRead int64
-	NewSharedRead int64
-	OldTempBlocks int64
-	NewTempBlocks int64
-	BufferDir     Direction
+	// Loops
+	OldLoops int64
+	NewLoops int64
+
+	// Filter effectiveness
+	OldRowsRemovedByFilter int64
+	NewRowsRemovedByFilter int64
+
+	// Parallel
+	OldWorkersLaunched int
+	NewWorkersLaunched int
+	OldWorkersPlanned  int
+	NewWorkersPlanned  int
+
+	// Buffers (aggregated)
+	OldBufferReads int64 // SharedRead + TempRead
+	NewBufferReads int64
+	OldBufferHits  int64
+	NewBufferHits  int64
+	BufferDir      Direction
 
 	OldSortSpill   bool
 	NewSortSpill   bool
@@ -122,8 +137,10 @@ type Summary struct {
 	NodesModified    int
 	NodesTypeChanged int
 
-	OldSharedRead int64
-	NewSharedRead int64
-	OldSharedHit  int64
-	NewSharedHit  int64
+	OldTotalReads int64
+	NewTotalReads int64
+	OldTotalHits  int64
+	NewTotalHits  int64
+
+	Verdict string
 }

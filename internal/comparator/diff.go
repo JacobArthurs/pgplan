@@ -39,12 +39,21 @@ func (c *Comparator) diffNodes(old, new *plan.PlanNode) NodeDelta {
 	delta.RowsPct = pctChange(float64(old.ActualRows), float64(new.ActualRows))
 	delta.RowsDir = Unchanged
 
-	delta.OldSharedHit = old.SharedHitBlocks
-	delta.NewSharedHit = new.SharedHitBlocks
-	delta.OldSharedRead = old.SharedReadBlocks
-	delta.NewSharedRead = new.SharedReadBlocks
-	delta.OldTempBlocks = old.TempReadBlocks + old.TempWrittenBlocks
-	delta.NewTempBlocks = new.TempReadBlocks + new.TempWrittenBlocks
+	delta.OldLoops = old.ActualLoops
+	delta.NewLoops = new.ActualLoops
+
+	delta.OldRowsRemovedByFilter = old.RowsRemovedByFilter
+	delta.NewRowsRemovedByFilter = new.RowsRemovedByFilter
+
+	delta.OldWorkersLaunched = old.WorkersLaunched
+	delta.NewWorkersLaunched = new.WorkersLaunched
+	delta.OldWorkersPlanned = old.WorkersPlanned
+	delta.NewWorkersPlanned = new.WorkersPlanned
+
+	delta.OldBufferReads = old.SharedReadBlocks + old.TempReadBlocks
+	delta.NewBufferReads = new.SharedReadBlocks + new.TempReadBlocks
+	delta.OldBufferHits = old.SharedHitBlocks
+	delta.NewBufferHits = new.SharedHitBlocks
 	delta.BufferDir = c.bufferDirection(old, new)
 
 	delta.OldSortSpill = old.SortSpaceType == "Disk"
@@ -53,6 +62,8 @@ func (c *Comparator) diffNodes(old, new *plan.PlanNode) NodeDelta {
 	delta.OldHashBatches = old.HashBatches
 	delta.NewHashBatches = new.HashBatches
 
+	// Filter and IndexCond strings are compared verbatim. PG's EXPLAIN JSON
+	// output is canonical, so formatting differences indicate actual changes.
 	delta.OldFilter = old.Filter
 	delta.NewFilter = new.Filter
 
@@ -71,6 +82,9 @@ func (c *Comparator) diffNodes(old, new *plan.PlanNode) NodeDelta {
 	return delta
 }
 
+// diffChildren uses position-based matching. When plan structure changes
+// significantly (e.g., Seq Scan becomes Index Scan + Bitmap Heap Scan),
+// position 0 shows as type_changed and additional nodes show as added.
 func (c *Comparator) diffChildren(oldKids, newKids []plan.PlanNode) []NodeDelta {
 	var deltas []NodeDelta
 
@@ -130,16 +144,25 @@ func (c *Comparator) isSignificant(d NodeDelta) bool {
 	if math.Abs(d.TimePct) > c.Threshold {
 		return true
 	}
+	if d.OldLoops != d.NewLoops && d.OldLoops > 0 {
+		loopRatio := float64(d.NewLoops) / float64(d.OldLoops)
+		if loopRatio > 2 || loopRatio < 0.5 {
+			return true
+		}
+	}
+	if d.OldRowsRemovedByFilter != d.NewRowsRemovedByFilter {
+		return true
+	}
+	if d.OldWorkersLaunched != d.NewWorkersLaunched {
+		return true
+	}
 	if d.OldSortSpill != d.NewSortSpill {
 		return true
 	}
 	if d.OldHashBatches != d.NewHashBatches {
 		return true
 	}
-	if d.OldTempBlocks != d.NewTempBlocks {
-		return true
-	}
-	if d.OldSharedRead != d.NewSharedRead {
+	if d.OldBufferReads != d.NewBufferReads {
 		return true
 	}
 	if d.OldFilter != d.NewFilter {

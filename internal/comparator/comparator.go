@@ -28,17 +28,41 @@ func (c *Comparator) Compare(old, new plan.ExplainOutput) ComparisonResult {
 		NewPlanningTime: new.PlanningTime,
 		PlanningDir:     c.direction(old.PlanningTime, new.PlanningTime, true),
 
-		OldSharedRead: old.Plan.SharedReadBlocks,
-		NewSharedRead: new.Plan.SharedReadBlocks,
-		OldSharedHit:  old.Plan.SharedHitBlocks,
-		NewSharedHit:  new.Plan.SharedHitBlocks,
+		OldTotalReads: old.Plan.SharedReadBlocks + old.Plan.TempReadBlocks,
+		NewTotalReads: new.Plan.SharedReadBlocks + new.Plan.TempReadBlocks,
+		OldTotalHits:  old.Plan.SharedHitBlocks,
+		NewTotalHits:  new.Plan.SharedHitBlocks,
 	}
 
 	countChanges(&rootDelta, &summary)
+	summary.Verdict = computeVerdict(summary)
 
 	return ComparisonResult{
 		Deltas:  []NodeDelta{rootDelta},
 		Summary: summary,
+	}
+}
+
+func computeVerdict(s Summary) string {
+	switch {
+	case s.TimeDir == Improved && s.CostDir == Improved:
+		return "faster and cheaper"
+	case s.TimeDir == Regressed && s.CostDir == Regressed:
+		return "slower and more expensive"
+	case s.TimeDir == Improved && s.CostDir == Regressed:
+		return "faster but higher estimated cost"
+	case s.TimeDir == Regressed && s.CostDir == Improved:
+		return "cheaper but slower execution"
+	case s.TimeDir == Improved && s.CostDir == Unchanged:
+		return "faster"
+	case s.TimeDir == Regressed && s.CostDir == Unchanged:
+		return "slower"
+	case s.TimeDir == Unchanged && s.CostDir == Improved:
+		return "cheaper"
+	case s.TimeDir == Unchanged && s.CostDir == Regressed:
+		return "more expensive"
+	default:
+		return "no significant change"
 	}
 }
 
