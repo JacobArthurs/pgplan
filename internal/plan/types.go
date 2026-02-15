@@ -71,6 +71,8 @@ type PlanNode struct {
 
 	// Children
 	Plans []PlanNode `json:"Plans,omitempty"`
+
+	SubplanName string `json:"Subplan Name,omitempty"`
 }
 
 // ExplainOutput represents the top-level EXPLAIN JSON output from PostgreSQL.
