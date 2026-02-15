@@ -34,7 +34,7 @@ func (tw *textWriter) printf(format string, args ...any) {
 func RenderAnalysisText(w io.Writer, result analyzer.AnalysisResult) error {
 	tw := &textWriter{w: w}
 
-	tw.printf("%s%sPlan Summary%s\n", colorBold, colorCyan, colorReset)
+	tw.printf("%s%sPlan Summary%s\n\n", colorBold, colorCyan, colorReset)
 	tw.printf("  Total Cost:     %.2f\n", result.TotalCost)
 	if result.ExecutionTime > 0 {
 		tw.printf("  Execution Time: %.3f ms\n", result.ExecutionTime)
@@ -78,7 +78,7 @@ func RenderComparisonText(w io.Writer, result comparator.ComparisonResult) error
 	tw := &textWriter{w: w}
 	s := result.Summary
 
-	tw.printf("%s%sSummary%s\n", colorBold, colorCyan, colorReset)
+	tw.printf("%s%sSummary%s\n\n", colorBold, colorCyan, colorReset)
 	tw.printf("  Cost:           %s\n", formatDelta(s.OldTotalCost, s.NewTotalCost, s.CostPct, s.CostDir, "%.2f"))
 	if s.OldExecutionTime > 0 || s.NewExecutionTime > 0 {
 		tw.printf("  Execution Time: %s\n", formatDelta(s.OldExecutionTime, s.NewExecutionTime, s.TimePct, s.TimeDir, "%.3f ms"))
@@ -86,8 +86,8 @@ func RenderComparisonText(w io.Writer, result comparator.ComparisonResult) error
 	if s.OldPlanningTime > 0 || s.NewPlanningTime > 0 {
 		tw.printf("  Planning Time:  %s\n", formatDelta(s.OldPlanningTime, s.NewPlanningTime, pctChange(s.OldPlanningTime, s.NewPlanningTime), s.PlanningDir, "%.3f ms"))
 	}
-	if s.OldSharedHit > 0 || s.NewSharedHit > 0 || s.OldSharedRead > 0 || s.NewSharedRead > 0 {
-		tw.printf("  Buffers:        hit %d→%d, read %d→%d\n", s.OldSharedHit, s.NewSharedHit, s.OldSharedRead, s.NewSharedRead)
+	if s.OldTotalHits > 0 || s.NewTotalHits > 0 || s.OldTotalReads > 0 || s.NewTotalReads > 0 {
+		tw.printf("  Buffers:        hit %d→%d, read %d→%d\n", s.OldTotalHits, s.NewTotalHits, s.OldTotalReads, s.NewTotalReads)
 	}
 	tw.printf("\n")
 
@@ -165,6 +165,20 @@ func (tw *textWriter) renderDelta(d comparator.NodeDelta, depth int) {
 		if d.OldRows != d.NewRows {
 			tw.renderMetricLineInt(indent, "rows", d.OldRows, d.NewRows, d.RowsPct)
 		}
+		if d.OldLoops != d.NewLoops && (d.OldLoops > 1 || d.NewLoops > 1) {
+			tw.renderMetricLineInt(indent, "loops", d.OldLoops, d.NewLoops,
+				pctChange(float64(d.OldLoops), float64(d.NewLoops)))
+		}
+		if d.OldRowsRemovedByFilter != d.NewRowsRemovedByFilter {
+			tw.renderMetricLineInt(indent, "rows removed by filter",
+				d.OldRowsRemovedByFilter, d.NewRowsRemovedByFilter,
+				pctChange(float64(d.OldRowsRemovedByFilter), float64(d.NewRowsRemovedByFilter)))
+		}
+		if d.OldWorkersLaunched != d.NewWorkersLaunched {
+			tw.printf("%s  workers: %d/%d → %d/%d\n", indent,
+				d.OldWorkersLaunched, d.OldWorkersPlanned,
+				d.NewWorkersLaunched, d.NewWorkersPlanned)
+		}
 		tw.renderFilterChange(indent, d)
 		tw.renderIndexCondChange(indent, d)
 		tw.renderIndexNameChange(indent, d)
@@ -216,13 +230,18 @@ func (tw *textWriter) renderIndexCondChange(indent string, d comparator.NodeDelt
 }
 
 func (tw *textWriter) renderBufferChanges(indent string, d comparator.NodeDelta) {
-	if d.OldSharedRead != d.NewSharedRead {
-		color, arrow := deltaIndicator(d.OldSharedRead, d.NewSharedRead)
-		tw.printf("%s  shared read: %d → %s%d %s%s\n", indent, d.OldSharedRead, color, d.NewSharedRead, arrow, colorReset)
+	if d.OldBufferReads != d.NewBufferReads {
+		color := colorGreen
+		arrow := "↓"
+		if d.NewBufferReads > d.OldBufferReads {
+			color = colorRed
+			arrow = "↑"
+		}
+		tw.printf("%s  disk reads: %d → %s%d %s%s\n",
+			indent, d.OldBufferReads, color, d.NewBufferReads, arrow, colorReset)
 	}
-	if d.OldTempBlocks != d.NewTempBlocks {
-		color, arrow := deltaIndicator(d.OldTempBlocks, d.NewTempBlocks)
-		tw.printf("%s  temp blocks: %d → %s%d %s%s\n", indent, d.OldTempBlocks, color, d.NewTempBlocks, arrow, colorReset)
+	if d.OldBufferHits != d.NewBufferHits {
+		tw.printf("%s  cache hits: %d → %d\n", indent, d.OldBufferHits, d.NewBufferHits)
 	}
 }
 
@@ -301,16 +320,19 @@ func (tw *textWriter) renderIndexNameChange(indent string, d comparator.NodeDelt
 }
 
 func (tw *textWriter) renderVerdict(s comparator.Summary) {
-	if s.TimeDir == comparator.Improved && s.CostDir == comparator.Improved {
-		tw.printf("\n%sVerdict: faster and cheaper%s\n", colorGreen, colorReset)
-	} else if s.TimeDir == comparator.Regressed && s.CostDir == comparator.Regressed {
-		tw.printf("\n%sVerdict: slower and more expensive%s\n", colorRed, colorReset)
-	} else if s.TimeDir == comparator.Improved {
-		tw.printf("\n%sVerdict: faster but higher estimated cost%s\n", colorYellow, colorReset)
-	} else if s.CostDir == comparator.Improved {
-		tw.printf("\n%sVerdict: cheaper but slower execution%s\n", colorYellow, colorReset)
+	var color string
+	switch {
+	case s.TimeDir == comparator.Improved && s.CostDir == comparator.Improved:
+		color = colorGreen
+	case s.TimeDir == comparator.Regressed && s.CostDir == comparator.Regressed:
+		color = colorRed
+	case s.TimeDir == comparator.Improved || s.CostDir == comparator.Improved:
+		color = colorYellow
+	}
+	if color != "" {
+		tw.printf("\n%sVerdict: %s%s\n", color, s.Verdict, colorReset)
 	} else {
-		tw.printf("\nVerdict: no significant change\n")
+		tw.printf("\nVerdict: %s\n", s.Verdict)
 	}
 }
 

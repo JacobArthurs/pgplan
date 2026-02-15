@@ -28,8 +28,8 @@ type PlanNode struct {
 	IndexCond                 string `json:"Index Cond,omitempty"`
 	Filter                    string `json:"Filter,omitempty"`
 	RowsRemovedByFilter       int64  `json:"Rows Removed by Filter,omitempty"`
-	RecheckCond               string `json:"Recheck Cond,omitempty"`
-	RowsRemovedByIndexRecheck int64  `json:"Rows Removed by Index Recheck,omitempty"`
+	ExactHeapBlocks           int64  `json:"Exact Heap Blocks,omitempty"`
+	LossyHeapBlocks           int64  `json:"Lossy Heap Blocks,omitempty"`
 
 	// Join info
 	JoinType                string `json:"Join Type,omitempty"`
