@@ -12,16 +12,22 @@ A command-line tool for analyzing and comparing PostgreSQL query execution plans
 
 ## Installation
 
-### [Go](https://pkg.go.dev/github.com/jacobarthurs/pgplan)
+### [PyPI](https://pypi.org/project/pgplan/)
 
 ```bash
-go install github.com/jacobarthurs/pgplan@latest
+pip install pgplan
 ```
 
 ### [NPM](https://www.npmjs.com/package/pgplan)
 
 ```bash
 npm i -g pgplan
+```
+
+### [Go](https://pkg.go.dev/github.com/jacobarthurs/pgplan)
+
+```bash
+go install github.com/jacobarthurs/pgplan@latest
 ```
 
 ### Binary

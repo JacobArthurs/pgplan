@@ -1,0 +1,81 @@
+name: Release to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build-wheels:
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            platform_tag: manylinux_2_17_x86_64.manylinux2014_x86_64
+            bin: pgplan
+          - goos: linux
+            goarch: arm64
+            platform_tag: manylinux_2_17_aarch64.manylinux2014_aarch64
+            bin: pgplan
+          - goos: darwin
+            goarch: amd64
+            platform_tag: macosx_10_12_x86_64
+            bin: pgplan
+          - goos: darwin
+            goarch: arm64
+            platform_tag: macosx_11_0_arm64
+            bin: pgplan
+          - goos: windows
+            goarch: amd64
+            platform_tag: win_amd64
+            bin: pgplan.exe
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build Go binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: go build -ldflags="-s -w" -o build/${{ matrix.bin }} .
+
+      - name: Build wheel
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python scripts/build-pip.py "$VERSION" "build/${{ matrix.bin }}" "${{ matrix.platform_tag }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*.whl
+
+  publish:
+    needs: build-wheels
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/

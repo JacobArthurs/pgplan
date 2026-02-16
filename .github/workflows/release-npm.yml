@@ -74,11 +74,6 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          if [[ "$VERSION" == *-* ]]; then
-            echo "NPM_TAG=next" >> $GITHUB_ENV
-          else
-            echo "NPM_TAG=latest" >> $GITHUB_ENV
-          fi
           node scripts/build-npm.js "$VERSION"
 
       - name: Copy binaries into platform packages
@@ -94,7 +89,7 @@ jobs:
           for dir in npm/pgplan-*/; do
             echo "Publishing $(basename $dir)@$VERSION..."
             cd "$dir"
-            npm publish --access public --provenance --tag "$NPM_TAG"
+            npm publish --access public --provenance --tag "latest"
             cd ../..
           done
 
@@ -104,4 +99,4 @@ jobs:
       - name: Publish root package
         run: |
           cd npm/pgplan
-          npm publish --access public --provenance --tag "$NPM_TAG"
+          npm publish --access public --provenance --tag "latest"
