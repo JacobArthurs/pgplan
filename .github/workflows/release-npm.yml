@@ -84,14 +84,12 @@ jobs:
           done
 
       - name: Publish platform packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -e
           for dir in npm/pgplan-*/; do
             echo "Publishing $(basename $dir)@$VERSION..."
             cd "$dir"
-            npm publish --access public
+            npm publish --access public --provenance
             cd ../..
           done
 
@@ -99,8 +97,6 @@ jobs:
         run: sleep 30
 
       - name: Publish root package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd npm/pgplan
-          npm publish --access public
+          npm publish --access public --provenance
