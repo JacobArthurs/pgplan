@@ -53,7 +53,7 @@ Version: {version}
 Summary: Compare and analyze PostgreSQL EXPLAIN plans from the CLI
 Author: Jacob Arthurs
 License: MIT
-Keywords: postgresql,query-plan,explain,database,optimization
+Keywords: cli,database,postgresql,developer-tools,query-optimization,query-plan,explain
 Classifier: Development Status :: 3 - Alpha
 Classifier: Environment :: Console
 Classifier: Intended Audience :: Developers
