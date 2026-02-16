@@ -37,7 +37,7 @@ func Resolve(input string, dbConn string, label string) (ExplainOutput, error) {
 
 EXPLAIN (ANALYZE, VERBOSE, BUFFERS, FORMAT JSON) <your query>
 
-Then provide the complete JSON output.`)
+then provide the complete JSON output`)
 	default:
 		return ExplainOutput{}, fmt.Errorf("unable to detect %sinput type: expected JSON plan, SQL query, or .json/.sql file", label)
 	}

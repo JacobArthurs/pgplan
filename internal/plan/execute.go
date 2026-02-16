@@ -14,7 +14,7 @@ func Execute(dbConn string, sql string) ([]ExplainOutput, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connecting to database: %w", err)
 	}
-	defer conn.Close(ctx)
+	defer func() { _ = conn.Close(ctx) }()
 
 	tx, err := conn.Begin(ctx)
 	if err != nil {
