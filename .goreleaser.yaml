@@ -10,8 +10,10 @@ builds:
       - amd64
       - arm64
 archives:
-  - format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+  - formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
