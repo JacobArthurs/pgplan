@@ -1,7 +1,7 @@
 package comparator
 
 import (
-	"pgplan/internal/plan"
+	"github.com/jacobarthurs/pgplan/internal/plan"
 )
 
 type Comparator struct {

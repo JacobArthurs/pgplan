@@ -3,7 +3,7 @@ package analyzer
 import (
 	"testing"
 
-	"pgplan/internal/plan"
+	"github.com/jacobarthurs/pgplan/internal/plan"
 )
 
 func TestBuildContext_DetectsCTEs(t *testing.T) {

@@ -6,10 +6,11 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"pgplan/internal/analyzer"
-	"pgplan/internal/output"
-	"pgplan/internal/plan"
-	"pgplan/internal/profile"
+
+	"github.com/jacobarthurs/pgplan/internal/analyzer"
+	"github.com/jacobarthurs/pgplan/internal/output"
+	"github.com/jacobarthurs/pgplan/internal/plan"
+	"github.com/jacobarthurs/pgplan/internal/profile"
 
 	"github.com/spf13/cobra"
 )

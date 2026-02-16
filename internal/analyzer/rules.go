@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"pgplan/internal/plan"
+	"github.com/jacobarthurs/pgplan/internal/plan"
 )
 
 const (

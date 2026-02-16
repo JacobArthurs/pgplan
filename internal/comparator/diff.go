@@ -3,7 +3,7 @@ package comparator
 import (
 	"math"
 
-	"pgplan/internal/plan"
+	"github.com/jacobarthurs/pgplan/internal/plan"
 )
 
 func (c *Comparator) diffNodes(old, new *plan.PlanNode) NodeDelta {

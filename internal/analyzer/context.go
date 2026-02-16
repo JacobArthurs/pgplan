@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"pgplan/internal/plan"
+	"github.com/jacobarthurs/pgplan/internal/plan"
 )
 
 type PlanContext struct {

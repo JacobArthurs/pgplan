@@ -3,7 +3,7 @@ Copyright © 2026 JACOB ARTHURS
 */
 package main
 
-import "pgplan/cmd"
+import "github.com/jacobarthurs/pgplan/cmd"
 
 func main() {
 	cmd.Execute()

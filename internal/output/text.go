@@ -5,8 +5,8 @@ import (
 	"io"
 	"strings"
 
-	"pgplan/internal/analyzer"
-	"pgplan/internal/comparator"
+	"github.com/jacobarthurs/pgplan/internal/analyzer"
+	"github.com/jacobarthurs/pgplan/internal/comparator"
 )
 
 const (

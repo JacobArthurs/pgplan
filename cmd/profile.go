@@ -5,7 +5,8 @@ package cmd
 
 import (
 	"fmt"
-	"pgplan/internal/profile"
+
+	"github.com/jacobarthurs/pgplan/internal/profile"
 
 	"github.com/spf13/cobra"
 )

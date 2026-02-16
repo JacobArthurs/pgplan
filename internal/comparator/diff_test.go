@@ -3,7 +3,7 @@ package comparator
 import (
 	"testing"
 
-	"pgplan/internal/plan"
+	"github.com/jacobarthurs/pgplan/internal/plan"
 )
 
 func defaultComparator() *Comparator {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"pgplan/internal/plan"
+	"github.com/jacobarthurs/pgplan/internal/plan"
 )
 
 // --- Helpers ---
