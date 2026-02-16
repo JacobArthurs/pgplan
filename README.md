@@ -12,7 +12,9 @@ A command-line tool for analyzing and comparing PostgreSQL query execution plans
 
 ## Installation
 
-Not yet published.
+```bash
+go install github.com/jacobarthurs/pgplan@latest
+```
 
 ## Quick Start
 
@@ -170,6 +172,16 @@ profiles:
 ```
 
 Use `--profile <name>` with any command, or set a default to skip the flag entirely. The `--db` and `--profile` flags are mutually exclusive.
+
+## Contributing
+
+Contributions are welcome! To get started:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b my-new-feature`)
+3. Open a pull request
+
+CI will automatically run tests and linting on your PR.
 
 ## License
 
