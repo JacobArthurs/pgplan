@@ -1,0 +1,106 @@
+name: Release to npm
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            npm_pkg: pgplan-linux-x64
+            bin: pgplan
+          - goos: linux
+            goarch: arm64
+            npm_pkg: pgplan-linux-arm64
+            bin: pgplan
+          - goos: darwin
+            goarch: amd64
+            npm_pkg: pgplan-darwin-x64
+            bin: pgplan
+          - goos: darwin
+            goarch: arm64
+            npm_pkg: pgplan-darwin-arm64
+            bin: pgplan
+          - goos: windows
+            goarch: amd64
+            npm_pkg: pgplan-win32-x64
+            bin: pgplan.exe
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: go build -ldflags="-s -w" -o npm/${{ matrix.npm_pkg }}/${{ matrix.bin }} .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.npm_pkg }}
+          path: npm/${{ matrix.npm_pkg }}/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Set version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          node scripts/build-npm.js "$VERSION"
+
+      - name: Copy binaries into platform packages
+        run: |
+          for pkg in artifacts/pgplan-*/; do
+            pkg_name=$(basename "$pkg")
+            cp -r "$pkg"/* "npm/$pkg_name/"
+          done
+
+      - name: Publish platform packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -e
+          for dir in npm/pgplan-*/; do
+            echo "Publishing $(basename $dir)@$VERSION..."
+            cd "$dir"
+            npm publish --access public
+            cd ../..
+          done
+
+      - name: Wait for npm propagation
+        run: sleep 30
+
+      - name: Publish root package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd npm/pgplan
+          npm publish --access public
