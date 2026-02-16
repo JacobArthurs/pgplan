@@ -21,3 +21,5 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Update Go module proxy
+        run: GOPROXY=https://proxy.golang.org go list -m github.com/jacobarthurs/pgplan@${GITHUB_REF_NAME}
