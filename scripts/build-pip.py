@@ -40,6 +40,12 @@ def build_wheel(version: str, binary_path: str, platform_tag: str):
     wheel_name = f"{name}-{version}-{tag}.whl"
     dist_info = f"{name}-{version}.dist-info"
 
+    # Resolve paths relative to this script's location
+    script_dir = Path(__file__).resolve().parent
+    repo_root = script_dir.parent
+    init_data = (repo_root / "pip" / "pgplan" / "__init__.py").read_bytes()
+    readme = (repo_root / "README.md").read_text(encoding="utf-8")
+
     metadata = f"""\
 Metadata-Version: 2.1
 Name: {name}
@@ -74,13 +80,6 @@ Tag: {tag}
 [console_scripts]
 pgplan = pgplan:main
 """
-
-    # Resolve paths relative to this script's location
-    script_dir = Path(__file__).resolve().parent
-    repo_root = script_dir.parent
-    init_py = repo_root / "pip" / "pgplan" / "__init__.py"
-    init_data = init_py.read_bytes()
-    readme = (repo_root / "README.md").read_text(encoding="utf-8")
 
     records = []
 
