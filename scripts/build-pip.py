@@ -58,6 +58,9 @@ Requires-Python: >=3.8
 Project-URL: Homepage, https://github.com/JacobArthurs/pgplan
 Project-URL: Repository, https://github.com/JacobArthurs/pgplan
 Project-URL: Issues, https://github.com/JacobArthurs/pgplan/issues
+Description-Content-Type: text/markdown
+
+{readme}
 """.encode()
 
     wheel_meta = f"""\
@@ -72,10 +75,12 @@ Tag: {tag}
 pgplan = pgplan:main
 """
 
-    # Resolve __init__.py relative to this script's location
+    # Resolve paths relative to this script's location
     script_dir = Path(__file__).resolve().parent
-    init_py = script_dir.parent / "pip" / "pgplan" / "__init__.py"
+    repo_root = script_dir.parent
+    init_py = repo_root / "pip" / "pgplan" / "__init__.py"
     init_data = init_py.read_bytes()
+    readme = (repo_root / "README.md").read_text(encoding="utf-8")
 
     records = []
 
