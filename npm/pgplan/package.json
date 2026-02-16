@@ -1,0 +1,28 @@
+{
+  "name": "pgplan",
+  "version": "0.0.0",
+  "description": "Analyze and compare PostgreSQL query plans",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JacobArthurs/pgplan.git"
+  },
+  "author": "Jacob Arthurs",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/JacobArthurs/pgplan/issues"
+  },
+  "homepage": "https://github.com/JacobArthurs/pgplan",
+  "bin": {
+    "pgplan": "bin/pgplan"
+  },
+  "files": [
+    "bin/**"
+  ],
+  "optionalDependencies": {
+    "@pgplan/linux-x64": "0.0.0",
+    "@pgplan/linux-arm64": "0.0.0",
+    "@pgplan/darwin-x64": "0.0.0",
+    "@pgplan/darwin-arm64": "0.0.0",
+    "@pgplan/win32-x64": "0.0.0"
+  }
+}
