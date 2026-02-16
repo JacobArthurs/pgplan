@@ -16,7 +16,8 @@
     "pgplan": "bin/pgplan"
   },
   "files": [
-    "bin/**"
+    "bin/**",
+    "README.md"
   ],
   "optionalDependencies": {
     "@pgplan/linux-x64": "0.0.0",

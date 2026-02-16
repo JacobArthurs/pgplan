@@ -58,3 +58,8 @@ for (const key of Object.keys(rootPkg.optionalDependencies)) {
 
 fs.writeFileSync(rootPkgPath, JSON.stringify(rootPkg, null, 2) + "\n");
 console.log(`Updated pgplan/package.json to ${version}`);
+
+const readmeSrc = path.join(__dirname, "..", "README.md");
+const readmeDst = path.join(npmDir, "pgplan", "README.md");
+fs.copyFileSync(readmeSrc, readmeDst);
+console.log("Copied README.md into pgplan package");
