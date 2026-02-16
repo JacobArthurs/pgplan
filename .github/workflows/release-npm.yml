@@ -70,10 +70,15 @@ jobs:
         with:
           path: artifacts
 
-      - name: Set version from tag
+      - name: Set version and dist-tag from tag
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+          if [[ "$VERSION" == *-* ]]; then
+            echo "NPM_TAG=next" >> $GITHUB_ENV
+          else
+            echo "NPM_TAG=latest" >> $GITHUB_ENV
+          fi
           node scripts/build-npm.js "$VERSION"
 
       - name: Copy binaries into platform packages
@@ -89,7 +94,7 @@ jobs:
           for dir in npm/pgplan-*/; do
             echo "Publishing $(basename $dir)@$VERSION..."
             cd "$dir"
-            npm publish --access public --provenance
+            npm publish --access public --provenance --tag "$NPM_TAG"
             cd ../..
           done
 
@@ -99,4 +104,4 @@ jobs:
       - name: Publish root package
         run: |
           cd npm/pgplan
-          npm publish --access public --provenance
+          npm publish --access public --provenance --tag "$NPM_TAG"
