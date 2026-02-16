@@ -71,7 +71,9 @@ func TestReadInput_File(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "test.json")
 	content := []byte(`[{"Plan": {}}]`)
-	os.WriteFile(path, content, 0644)
+	if err := os.WriteFile(path, content, 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	data, err := readInput(path, "")
 	if err != nil {
@@ -108,7 +110,9 @@ func TestResolve_JSONFile(t *testing.T) {
 		"Planning Time": 0.1,
 		"Execution Time": 0.2
 	}]`)
-	os.WriteFile(path, content, 0644)
+	if err := os.WriteFile(path, content, 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	plan, err := Resolve(path, "", "")
 	if err != nil {
@@ -122,7 +126,9 @@ func TestResolve_JSONFile(t *testing.T) {
 func TestResolve_SQLFileWithoutDB(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "query.sql")
-	os.WriteFile(path, []byte("SELECT 1"), 0644)
+	if err := os.WriteFile(path, []byte("SELECT 1"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	_, err := Resolve(path, "", "")
 	if err == nil {
@@ -133,7 +139,9 @@ func TestResolve_SQLFileWithoutDB(t *testing.T) {
 func TestResolve_InvalidJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "bad.json")
-	os.WriteFile(path, []byte("not json at all"), 0644)
+	if err := os.WriteFile(path, []byte("not json at all"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	_, err := Resolve(path, "", "")
 	if err == nil {
@@ -144,7 +152,9 @@ func TestResolve_InvalidJSON(t *testing.T) {
 func TestResolve_EmptyJSONArray(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "empty.json")
-	os.WriteFile(path, []byte("[]"), 0644)
+	if err := os.WriteFile(path, []byte("[]"), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	_, err := Resolve(path, "", "")
 	if err == nil {
@@ -155,7 +165,9 @@ func TestResolve_EmptyJSONArray(t *testing.T) {
 func TestResolve_TruncatedJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "truncated.json")
-	os.WriteFile(path, []byte(`[{"Plan": {"Node Type": "Seq Sc`), 0644)
+	if err := os.WriteFile(path, []byte(`[{"Plan": {"Node Type": "Seq Sc`), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
 
 	_, err := Resolve(path, "", "")
 	if err == nil {

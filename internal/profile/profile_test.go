@@ -44,8 +44,12 @@ func TestAdd_UpdateExisting(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	Add("prod", "postgres://localhost/prod_v1")
-	Add("prod", "postgres://localhost/prod_v2")
+	if err := Add("prod", "postgres://localhost/prod_v1"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if err := Add("prod", "postgres://localhost/prod_v2"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
 
 	profiles, err := List()
 	if err != nil {
@@ -63,9 +67,15 @@ func TestAdd_MultipleProfiles(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	Add("prod", "postgres://prod-host/db")
-	Add("dev", "postgres://localhost/db")
-	Add("staging", "postgres://staging-host/db")
+	if err := Add("prod", "postgres://prod-host/db"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if err := Add("dev", "postgres://localhost/db"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if err := Add("staging", "postgres://staging-host/db"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
 
 	profiles, err := List()
 	if err != nil {
@@ -80,8 +90,12 @@ func TestRemove_Existing(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	Add("prod", "postgres://localhost/prod")
-	Add("dev", "postgres://localhost/dev")
+	if err := Add("prod", "postgres://localhost/prod"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if err := Add("dev", "postgres://localhost/dev"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
 
 	err := Remove("prod")
 	if err != nil {
@@ -104,7 +118,9 @@ func TestRemove_NonExistent(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	Add("prod", "postgres://localhost/prod")
+	if err := Add("prod", "postgres://localhost/prod"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
 
 	err := Remove("staging")
 	if err == nil {
@@ -116,7 +132,9 @@ func TestResolve_ExistingProfile(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	Add("prod", "postgres://prod-host/db")
+	if err := Add("prod", "postgres://prod-host/db"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
 
 	connStr, err := Resolve("prod")
 	if err != nil {
@@ -151,8 +169,12 @@ func TestSetDefault(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	Add("prod", "postgres://prod-host/db")
-	Add("dev", "postgres://localhost/db")
+	if err := Add("prod", "postgres://prod-host/db"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if err := Add("dev", "postgres://localhost/db"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
 
 	err := SetDefault("prod")
 	if err != nil {
@@ -182,8 +204,12 @@ func TestClearDefault(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	Add("prod", "postgres://prod-host/db")
-	SetDefault("prod")
+	if err := Add("prod", "postgres://prod-host/db"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if err := SetDefault("prod"); err != nil {
+		t.Fatalf("SetDefault failed: %v", err)
+	}
 
 	err := ClearDefault()
 	if err != nil {
@@ -213,7 +239,9 @@ func TestResolveConnStr_ProfileFlag(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	Add("prod", "postgres://prod-host/db")
+	if err := Add("prod", "postgres://prod-host/db"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
 
 	connStr, err := ResolveConnStr("", "prod")
 	if err != nil {
@@ -228,8 +256,12 @@ func TestResolveConnStr_DefaultFallback(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	Add("prod", "postgres://prod-host/db")
-	SetDefault("prod")
+	if err := Add("prod", "postgres://prod-host/db"); err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+	if err := SetDefault("prod"); err != nil {
+		t.Fatalf("SetDefault failed: %v", err)
+	}
 
 	connStr, err := ResolveConnStr("", "")
 	if err != nil {
