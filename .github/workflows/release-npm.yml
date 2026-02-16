@@ -48,7 +48,9 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
-        run: go build -ldflags="-s -w" -o npm/${{ matrix.npm_pkg }}/${{ matrix.bin }} .
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          go build -ldflags="-s -w -X github.com/jacobarthurs/pgplan/cmd.Version=$VERSION" -o npm/${{ matrix.npm_pkg }}/${{ matrix.bin }} .
 
       - uses: actions/upload-artifact@v4
         with:
