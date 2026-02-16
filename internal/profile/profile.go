@@ -101,15 +101,12 @@ func ResolveConnStr(db, profileName string) (string, error) {
 		return Resolve(profileName)
 	}
 
-	cfg, err := load()
+	def, err := GetDefault()
 	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
 		return "", err
 	}
-	if cfg.Default != "" {
-		return Resolve(cfg.Default)
+	if def != "" {
+		return Resolve(def)
 	}
 
 	return "", nil
@@ -202,6 +199,17 @@ func SetDefault(name string) error {
 
 	cfg.Default = name
 	return save(cfg)
+}
+
+func GetDefault() (string, error) {
+	cfg, err := load()
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", err
+	}
+	return cfg.Default, nil
 }
 
 func ClearDefault() error {
