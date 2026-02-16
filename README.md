@@ -12,9 +12,15 @@ A command-line tool for analyzing and comparing PostgreSQL query execution plans
 
 ## Installation
 
+### Go
+
 ```bash
 go install github.com/jacobarthurs/pgplan@latest
 ```
+
+### Binary
+
+Download the latest release for your platform from the [releases page](https://github.com/JacobArthurs/pgplan/releases/latest).
 
 ## Quick Start
 
