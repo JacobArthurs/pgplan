@@ -1,5 +1,12 @@
 # pgplan
 
+[![GitHub Release](https://img.shields.io/github/v/release/JacobArthurs/pgplan)](https://github.com/JacobArthurs/pgplan/releases/latest)
+[![npm](https://img.shields.io/npm/v/pgplan)](https://www.npmjs.com/package/pgplan)
+[![PyPI](https://img.shields.io/pypi/v/pgplan)](https://pypi.org/project/pgplan/)
+[![Go Reference](https://pkg.go.dev/badge/github.com/jacobarthurs/pgplan.svg)](https://pkg.go.dev/github.com/jacobarthurs/pgplan)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jacobarthurs/pgplan)](https://goreportcard.com/report/github.com/jacobarthurs/pgplan)
+[![License](https://img.shields.io/github/license/JacobArthurs/pgplan)](LICENSE)
+
 A command-line tool for analyzing and comparing PostgreSQL query execution plans. Get optimization insights and track performance regressions without leaving your terminal.
 
 ## Features
