@@ -43,27 +43,22 @@ func (c *Comparator) Compare(old, new plan.ExplainOutput) ComparisonResult {
 	}
 }
 
+var verdicts = map[[2]Direction]string{
+	{Improved, Improved}:   "faster and cheaper",
+	{Regressed, Regressed}: "slower and more expensive",
+	{Improved, Regressed}:  "faster but higher estimated cost",
+	{Regressed, Improved}:  "cheaper but slower execution",
+	{Improved, Unchanged}:  "faster",
+	{Regressed, Unchanged}: "slower",
+	{Unchanged, Improved}:  "cheaper",
+	{Unchanged, Regressed}: "more expensive",
+}
+
 func computeVerdict(s Summary) string {
-	switch {
-	case s.TimeDir == Improved && s.CostDir == Improved:
-		return "faster and cheaper"
-	case s.TimeDir == Regressed && s.CostDir == Regressed:
-		return "slower and more expensive"
-	case s.TimeDir == Improved && s.CostDir == Regressed:
-		return "faster but higher estimated cost"
-	case s.TimeDir == Regressed && s.CostDir == Improved:
-		return "cheaper but slower execution"
-	case s.TimeDir == Improved && s.CostDir == Unchanged:
-		return "faster"
-	case s.TimeDir == Regressed && s.CostDir == Unchanged:
-		return "slower"
-	case s.TimeDir == Unchanged && s.CostDir == Improved:
-		return "cheaper"
-	case s.TimeDir == Unchanged && s.CostDir == Regressed:
-		return "more expensive"
-	default:
-		return "no significant change"
+	if v, ok := verdicts[[2]Direction{s.TimeDir, s.CostDir}]; ok {
+		return v
 	}
+	return "no significant change"
 }
 
 func countChanges(delta *NodeDelta, summary *Summary) {

@@ -46,53 +46,32 @@ func TestParseJSONPlan_ValidPlan(t *testing.T) {
 	}
 
 	node := p.Plan
-	if node.NodeType != "Seq Scan" {
-		t.Errorf("NodeType = %q, want %q", node.NodeType, "Seq Scan")
+	checks := []struct {
+		name string
+		got  any
+		want any
+	}{
+		{"NodeType", node.NodeType, "Seq Scan"},
+		{"RelationName", node.RelationName, "users"},
+		{"Schema", node.Schema, "public"},
+		{"Alias", node.Alias, "u"},
+		{"StartupCost", node.StartupCost, 0.00},
+		{"TotalCost", node.TotalCost, 20.00},
+		{"PlanRows", node.PlanRows, int64(1000)},
+		{"PlanWidth", node.PlanWidth, 8},
+		{"ActualStartupTime", node.ActualStartupTime, 0.013},
+		{"ActualTotalTime", node.ActualTotalTime, 0.108},
+		{"ActualRows", node.ActualRows, int64(1000)},
+		{"ActualLoops", node.ActualLoops, int64(1)},
+		{"Filter", node.Filter, "(active = true)"},
+		{"RowsRemovedByFilter", node.RowsRemovedByFilter, int64(500)},
+		{"SharedHitBlocks", node.SharedHitBlocks, int64(5)},
+		{"SharedReadBlocks", node.SharedReadBlocks, int64(10)},
 	}
-	if node.RelationName != "users" {
-		t.Errorf("RelationName = %q, want %q", node.RelationName, "users")
-	}
-	if node.Schema != "public" {
-		t.Errorf("Schema = %q, want %q", node.Schema, "public")
-	}
-	if node.Alias != "u" {
-		t.Errorf("Alias = %q, want %q", node.Alias, "u")
-	}
-	if node.StartupCost != 0.00 {
-		t.Errorf("StartupCost = %f, want 0.00", node.StartupCost)
-	}
-	if node.TotalCost != 20.00 {
-		t.Errorf("TotalCost = %f, want 20.00", node.TotalCost)
-	}
-	if node.PlanRows != 1000 {
-		t.Errorf("PlanRows = %d, want 1000", node.PlanRows)
-	}
-	if node.PlanWidth != 8 {
-		t.Errorf("PlanWidth = %d, want 8", node.PlanWidth)
-	}
-	if node.ActualStartupTime != 0.013 {
-		t.Errorf("ActualStartupTime = %f, want 0.013", node.ActualStartupTime)
-	}
-	if node.ActualTotalTime != 0.108 {
-		t.Errorf("ActualTotalTime = %f, want 0.108", node.ActualTotalTime)
-	}
-	if node.ActualRows != 1000 {
-		t.Errorf("ActualRows = %d, want 1000", node.ActualRows)
-	}
-	if node.ActualLoops != 1 {
-		t.Errorf("ActualLoops = %d, want 1", node.ActualLoops)
-	}
-	if node.Filter != "(active = true)" {
-		t.Errorf("Filter = %q, want %q", node.Filter, "(active = true)")
-	}
-	if node.RowsRemovedByFilter != 500 {
-		t.Errorf("RowsRemovedByFilter = %d, want 500", node.RowsRemovedByFilter)
-	}
-	if node.SharedHitBlocks != 5 {
-		t.Errorf("SharedHitBlocks = %d, want 5", node.SharedHitBlocks)
-	}
-	if node.SharedReadBlocks != 10 {
-		t.Errorf("SharedReadBlocks = %d, want 10", node.SharedReadBlocks)
+	for _, c := range checks {
+		if c.got != c.want {
+			t.Errorf("%s = %v, want %v", c.name, c.got, c.want)
+		}
 	}
 }
 

@@ -120,75 +120,87 @@ func (tw *textWriter) renderDelta(d comparator.NodeDelta, depth int) {
 			tw.renderDelta(child, depth)
 		}
 		return
-
 	case comparator.Added:
-		tw.printf("%s%s+ %s%s", indent, colorGreen, nodeLabel(d), colorReset)
-		tw.printf(" (cost=%.2f", d.NewCost)
-		if d.NewTime > 0 {
-			tw.printf(" time=%.3fms", d.NewTime)
-		}
-		tw.printf(")\n")
-
+		tw.renderAddedNode(indent, d)
 	case comparator.Removed:
-		tw.printf("%s%s- %s%s", indent, colorRed, nodeLabel(d), colorReset)
-		tw.printf(" (cost=%.2f", d.OldCost)
-		if d.OldTime > 0 {
-			tw.printf(" time=%.3fms", d.OldTime)
-		}
-		tw.printf(")\n")
-
+		tw.renderRemovedNode(indent, d)
 	case comparator.TypeChanged:
-		tw.printf("%s%s~ %s → %s%s", indent, colorYellow, d.OldNodeType, d.NewNodeType, colorReset)
-		if d.Relation != "" {
-			tw.printf(" on %s", d.Relation)
-		}
-		tw.printf("\n")
-		tw.renderMetricLine(indent, "cost", d.OldCost, d.NewCost, d.CostPct, d.CostDir, "%.2f")
-		if d.OldTime > 0 || d.NewTime > 0 {
-			tw.renderMetricLine(indent, "time", d.OldTime, d.NewTime, d.TimePct, d.TimeDir, "%.3f ms")
-		}
-		if d.OldRows != d.NewRows {
-			tw.renderMetricLineInt(indent, "rows", d.OldRows, d.NewRows, d.RowsPct)
-		}
-		tw.renderFilterChange(indent, d)
-		tw.renderIndexCondChange(indent, d)
-		tw.renderIndexNameChange(indent, d)
-		tw.renderBufferChanges(indent, d)
-		tw.renderSpillChanges(indent, d)
-
+		tw.renderTypeChangedNode(indent, d)
 	case comparator.Modified:
-		tw.printf("%s%s~ %s%s\n", indent, colorYellow, nodeLabel(d), colorReset)
-		tw.renderMetricLine(indent, "cost", d.OldCost, d.NewCost, d.CostPct, d.CostDir, "%.2f")
-		if d.OldTime > 0 || d.NewTime > 0 {
-			tw.renderMetricLine(indent, "time", d.OldTime, d.NewTime, d.TimePct, d.TimeDir, "%.3f ms")
-		}
-		if d.OldRows != d.NewRows {
-			tw.renderMetricLineInt(indent, "rows", d.OldRows, d.NewRows, d.RowsPct)
-		}
-		if d.OldLoops != d.NewLoops && (d.OldLoops > 1 || d.NewLoops > 1) {
-			tw.renderMetricLineInt(indent, "loops", d.OldLoops, d.NewLoops,
-				pctChange(float64(d.OldLoops), float64(d.NewLoops)))
-		}
-		if d.OldRowsRemovedByFilter != d.NewRowsRemovedByFilter {
-			tw.renderMetricLineInt(indent, "rows removed by filter",
-				d.OldRowsRemovedByFilter, d.NewRowsRemovedByFilter,
-				pctChange(float64(d.OldRowsRemovedByFilter), float64(d.NewRowsRemovedByFilter)))
-		}
-		if d.OldWorkersLaunched != d.NewWorkersLaunched {
-			tw.printf("%s  workers: %d/%d → %d/%d\n", indent,
-				d.OldWorkersLaunched, d.OldWorkersPlanned,
-				d.NewWorkersLaunched, d.NewWorkersPlanned)
-		}
-		tw.renderFilterChange(indent, d)
-		tw.renderIndexCondChange(indent, d)
-		tw.renderIndexNameChange(indent, d)
-		tw.renderBufferChanges(indent, d)
-		tw.renderSpillChanges(indent, d)
+		tw.renderModifiedNode(indent, d)
 	}
 
 	for _, child := range d.Children {
 		tw.renderDelta(child, depth+1)
 	}
+}
+
+func (tw *textWriter) renderAddedNode(indent string, d comparator.NodeDelta) {
+	tw.printf("%s%s+ %s%s", indent, colorGreen, nodeLabel(d), colorReset)
+	tw.printf(" (cost=%.2f", d.NewCost)
+	if d.NewTime > 0 {
+		tw.printf(" time=%.3fms", d.NewTime)
+	}
+	tw.printf(")\n")
+}
+
+func (tw *textWriter) renderRemovedNode(indent string, d comparator.NodeDelta) {
+	tw.printf("%s%s- %s%s", indent, colorRed, nodeLabel(d), colorReset)
+	tw.printf(" (cost=%.2f", d.OldCost)
+	if d.OldTime > 0 {
+		tw.printf(" time=%.3fms", d.OldTime)
+	}
+	tw.printf(")\n")
+}
+
+func (tw *textWriter) renderTypeChangedNode(indent string, d comparator.NodeDelta) {
+	tw.printf("%s%s~ %s → %s%s", indent, colorYellow, d.OldNodeType, d.NewNodeType, colorReset)
+	if d.Relation != "" {
+		tw.printf(" on %s", d.Relation)
+	}
+	tw.printf("\n")
+	tw.renderMetricLine(indent, "cost", d.OldCost, d.NewCost, d.CostPct, d.CostDir, "%.2f")
+	if d.OldTime > 0 || d.NewTime > 0 {
+		tw.renderMetricLine(indent, "time", d.OldTime, d.NewTime, d.TimePct, d.TimeDir, "%.3f ms")
+	}
+	if d.OldRows != d.NewRows {
+		tw.renderMetricLineInt(indent, "rows", d.OldRows, d.NewRows, d.RowsPct)
+	}
+	tw.renderFilterChange(indent, d)
+	tw.renderIndexCondChange(indent, d)
+	tw.renderIndexNameChange(indent, d)
+	tw.renderBufferChanges(indent, d)
+	tw.renderSpillChanges(indent, d)
+}
+
+func (tw *textWriter) renderModifiedNode(indent string, d comparator.NodeDelta) {
+	tw.printf("%s%s~ %s%s\n", indent, colorYellow, nodeLabel(d), colorReset)
+	tw.renderMetricLine(indent, "cost", d.OldCost, d.NewCost, d.CostPct, d.CostDir, "%.2f")
+	if d.OldTime > 0 || d.NewTime > 0 {
+		tw.renderMetricLine(indent, "time", d.OldTime, d.NewTime, d.TimePct, d.TimeDir, "%.3f ms")
+	}
+	if d.OldRows != d.NewRows {
+		tw.renderMetricLineInt(indent, "rows", d.OldRows, d.NewRows, d.RowsPct)
+	}
+	if d.OldLoops != d.NewLoops && (d.OldLoops > 1 || d.NewLoops > 1) {
+		tw.renderMetricLineInt(indent, "loops", d.OldLoops, d.NewLoops,
+			pctChange(float64(d.OldLoops), float64(d.NewLoops)))
+	}
+	if d.OldRowsRemovedByFilter != d.NewRowsRemovedByFilter {
+		tw.renderMetricLineInt(indent, "rows removed by filter",
+			d.OldRowsRemovedByFilter, d.NewRowsRemovedByFilter,
+			pctChange(float64(d.OldRowsRemovedByFilter), float64(d.NewRowsRemovedByFilter)))
+	}
+	if d.OldWorkersLaunched != d.NewWorkersLaunched {
+		tw.printf("%s  workers: %d/%d → %d/%d\n", indent,
+			d.OldWorkersLaunched, d.OldWorkersPlanned,
+			d.NewWorkersLaunched, d.NewWorkersPlanned)
+	}
+	tw.renderFilterChange(indent, d)
+	tw.renderIndexCondChange(indent, d)
+	tw.renderIndexNameChange(indent, d)
+	tw.renderBufferChanges(indent, d)
+	tw.renderSpillChanges(indent, d)
 }
 
 func (tw *textWriter) renderMetricLine(indent, label string, oldVal, newVal, pct float64, dir comparator.Direction, fmtStr string) {
