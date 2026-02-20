@@ -293,14 +293,14 @@ func TestNestedLoopHighLoops_ManyIterations(t *testing.T) {
 		NodeType: "Nested Loop",
 		Plans: []plan.PlanNode{
 			{NodeType: "Seq Scan", ActualRows: 50000, ActualLoops: 1},
-			{NodeType: "Index Scan", RelationName: "details", ActualLoops: 50000, ActualTotalTime: 0.01},
+			{NodeType: "Index Scan", RelationName: "details", ActualLoops: 50000, ActualTotalTime: 0.2},
 		},
 	}
 
 	findings := checkNestedLoopHighLoops(node, nil, -1, emptyCtx())
 	requireFindings(t, findings, 1)
 	if findings[0].Severity != Critical {
-		t.Errorf("severity = %v, want Critical (50k loops)", findings[0].Severity)
+		t.Errorf("severity = %v, want Critical (50k loops * 0.2ms = 10000ms total)", findings[0].Severity)
 	}
 }
 
