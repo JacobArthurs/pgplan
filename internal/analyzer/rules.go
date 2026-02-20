@@ -20,8 +20,11 @@ const (
 	RecheckCriticalPct       = 90.0
 	ReadBlocksCriticalPct    = 50.0
 
-	NestedLoopWarningLoops   = 1000
-	NestedLoopCriticalLoops  = 10000
+	NestedLoopWarningLoops      = 1000
+	NestedLoopCriticalLoops     = 10000
+	NestedLoopMinTotalTime      = 500.0
+	NestedLoopCriticalTotalTime = 5000.0
+
 	MaterializeWarningLoops  = 100
 	MaterializeCriticalLoops = 10000
 
@@ -279,14 +282,18 @@ func checkNestedLoopHighLoops(node *plan.PlanNode, parent *plan.PlanNode, childI
 		return nil
 	}
 
+	innerTime := inner.ActualTotalTime * float64(inner.ActualLoops)
+	if innerTime < NestedLoopMinTotalTime {
+		return nil
+	}
+
 	severity := Warning
-	if inner.ActualLoops > NestedLoopCriticalLoops {
+	if innerTime > NestedLoopCriticalTotalTime {
 		severity = Critical
 	}
 
-	innerTime := inner.ActualTotalTime * float64(inner.ActualLoops)
-	desc := fmt.Sprintf("Nested Loop executes %s %d times (%.1fms total)",
-		innerNodeLabel(inner), inner.ActualLoops, innerTime)
+	desc := fmt.Sprintf("Nested Loop executes %s %d times (%.1fms total, %.3fms/iter)",
+		innerNodeLabel(inner), inner.ActualLoops, innerTime, inner.ActualTotalTime)
 
 	suggestion := "Consider Hash Join or Merge Join; verify indexes exist on inner side join columns"
 	if inner.NodeType == "Index Scan" && inner.Filter != "" {
