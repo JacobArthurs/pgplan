@@ -54,3 +54,5 @@ jobs:
           MAJOR=$(echo "${GITHUB_REF_NAME}" | cut -d. -f1)
           git tag -f "${MAJOR}"
           git push origin "${MAJOR}" --force
+      - name: Update Go module proxy
+        run: GOPROXY=https://proxy.golang.org go list -m github.com/jacobarthurs/pgplan@${GITHUB_REF_NAME}
