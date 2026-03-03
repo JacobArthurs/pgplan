@@ -31,12 +31,13 @@ It provides actionable optimization insights without requiring a browser.
 Supports SQL, and JSON input formats.`,
 	Example: `  # Analyze a single query
   pgplan analyze query.sql
-  
+
   # Compare two plans
   pgplan compare old.sql new.sql
-  
-  # Setup connection profiles
-  pgplan init`,
+
+  # Manage connection profiles
+  pgplan profile add prod "postgres://user:pass@host:5432/db"
+  pgplan profile list`,
 }
 
 func Execute() {
