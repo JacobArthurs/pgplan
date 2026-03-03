@@ -5,6 +5,7 @@ on:
       - "v*"
 permissions:
   contents: write
+  id-token: write
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
@@ -12,14 +13,41 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
       - uses: goreleaser/goreleaser-action@v6
         with:
-          version: latest
+          version: ~> v2
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Update Go module proxy
-        run: GOPROXY=https://proxy.golang.org go list -m github.com/jacobarthurs/pgplan@${GITHUB_REF_NAME}
+      - uses: jacobarthurs/shipbin@v1
+        with:
+          registry: npm
+          name: pgplan
+          license: MIT
+          summary: Analyze and compare PostgreSQL query plans
+          org: pgplan
+          artifacts: |
+            linux/amd64:./dist/pgplan_linux_amd64_v1/pgplan
+            linux/arm64:./dist/pgplan_linux_arm64_v8.0/pgplan
+            darwin/amd64:./dist/pgplan_darwin_amd64_v1/pgplan
+            darwin/arm64:./dist/pgplan_darwin_arm64_v8.0/pgplan
+            windows/amd64:./dist/pgplan_windows_amd64_v1/pgplan.exe
+            windows/arm64:./dist/pgplan_windows_arm64_v8.0/pgplan.exe
+      - uses: jacobarthurs/shipbin@v1
+        with:
+          registry: pypi
+          name: pgplan
+          license: MIT
+          summary: Analyze and compare PostgreSQL query plans
+          artifacts: |
+            linux/amd64:./dist/pgplan_linux_amd64_v1/pgplan
+            linux/arm64:./dist/pgplan_linux_arm64_v8.0/pgplan
+            darwin/amd64:./dist/pgplan_darwin_amd64_v1/pgplan
+            darwin/arm64:./dist/pgplan_darwin_arm64_v8.0/pgplan
+            windows/amd64:./dist/pgplan_windows_amd64_v1/pgplan.exe
+            windows/arm64:./dist/pgplan_windows_arm64_v8.0/pgplan.exe
+      - name: Update floating major tag
+        run: |
+          MAJOR=$(echo "${GITHUB_REF_NAME}" | cut -d. -f1)
+          git tag -f "${MAJOR}"
+          git push origin "${MAJOR}" --force
