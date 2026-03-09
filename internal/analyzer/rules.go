@@ -88,20 +88,17 @@ func checkIndexScanFilterInefficiency(node, parent *plan.PlanNode, childIdx int,
 		severity = Critical
 	}
 
-	missingCols := ConditionColumnsNotIn(node.Filter, node.IndexCond)
-	indexCols := ExtractConditionColumns(node.IndexCond)
-
 	desc := fmt.Sprintf("%s on %s using %s filters out %.2f%% of rows (%d of %d)",
 		node.NodeType, node.RelationName, node.IndexName,
 		removedPct, node.RowsRemovedByFilter, total)
 
 	var suggestion string
-	if len(missingCols) > 0 && len(indexCols) > 0 {
-		literal := ExtractLiteralValue(node.Filter)
+	if missingCols, indexCols := ConditionColumnsNotIn(node.Filter, node.IndexCond), ExtractConditionColumns(node.IndexCond); len(missingCols) > 0 && len(indexCols) > 0 {
+
 		compositeCols := strings.Join(append(indexCols, missingCols...), ", ")
 		suggestion = fmt.Sprintf("Column `%s` in filter is not in index; consider composite index on (%s)",
 			strings.Join(missingCols, ", "), compositeCols)
-		if literal != "" && len(missingCols) == 1 {
+		if literal := ExtractLiteralValue(node.Filter); literal != "" && len(missingCols) == 1 {
 			suggestion += fmt.Sprintf(" or partial index WHERE %s = '%s'", missingCols[0], literal)
 		}
 	} else {
@@ -146,18 +143,15 @@ func checkSeqScanInJoin(node, parent *plan.PlanNode, childIdx int, ctx *PlanCont
 		severity = Critical
 	}
 
-	joinCol := extractJoinColumnForTable(parent, node.RelationName, node.Alias)
-
 	desc := fmt.Sprintf("Seq Scan on %s scans %d rows to join against %d rows",
 		node.RelationName, rows, siblingRows)
 
-	siblingSource := findSiblingSource(childIdx, parent)
-	if siblingSource != "" {
+	if siblingSource := findSiblingSource(childIdx, parent); siblingSource != "" {
 		desc += fmt.Sprintf(" from CTE %s", siblingSource)
 	}
 
 	suggestion := "Consider index on join column to enable index lookup instead of full scan"
-	if joinCol != "" {
+	if joinCol := extractJoinColumnForTable(parent, node.RelationName, node.Alias); joinCol != "" {
 		joinCond := parent.HashCond
 		if joinCond == "" {
 			joinCond = parent.MergeCond
@@ -216,16 +210,14 @@ func checkSeqScanStandalone(node, parent *plan.PlanNode, childIdx int, ctx *Plan
 		severity = Critical
 	}
 
-	filterCols := ExtractConditionColumns(node.Filter)
-
 	desc := fmt.Sprintf("Seq Scan on %s filters out %.2f%% of rows (%d of %d)",
 		node.RelationName, removedPct, node.RowsRemovedByFilter, total)
 
 	suggestion := fmt.Sprintf("Add an index on %s covering the filter condition", node.RelationName)
-	if len(filterCols) > 0 {
-		literal := ExtractLiteralValue(node.Filter)
+	if filterCols := ExtractConditionColumns(node.Filter); len(filterCols) > 0 {
+
 		suggestion = fmt.Sprintf("Consider index on %s(%s)", node.RelationName, strings.Join(filterCols, ", "))
-		if literal != "" && len(filterCols) == 1 {
+		if literal := ExtractLiteralValue(node.Filter); literal != "" && len(filterCols) == 1 {
 			suggestion += fmt.Sprintf(" or partial index WHERE %s = '%s'", filterCols[0], literal)
 		}
 	}

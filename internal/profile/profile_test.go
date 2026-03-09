@@ -18,8 +18,7 @@ func TestAdd_NewProfile(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	err := Add("prod", "postgres://localhost/prod")
-	if err != nil {
+	if err := Add("prod", "postgres://localhost/prod"); err != nil {
 		t.Fatalf("Add failed: %v", err)
 	}
 
@@ -95,8 +94,7 @@ func TestRemove_Existing(t *testing.T) {
 		t.Fatalf("Add failed: %v", err)
 	}
 
-	err := Remove("prod")
-	if err != nil {
+	if err := Remove("prod"); err != nil {
 		t.Fatalf("Remove failed: %v", err)
 	}
 
@@ -120,8 +118,7 @@ func TestRemove_NonExistent(t *testing.T) {
 		t.Fatalf("Add failed: %v", err)
 	}
 
-	err := Remove("staging")
-	if err == nil {
+	if err := Remove("staging"); err == nil {
 		t.Fatal("expected error when removing non-existent profile")
 	}
 }
@@ -147,8 +144,7 @@ func TestResolve_NonExistent(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	_, err := Resolve("nonexistent")
-	if err == nil {
+	if _, err := Resolve("nonexistent"); err == nil {
 		t.Fatal("expected error for non-existent profile")
 	}
 }
@@ -157,8 +153,7 @@ func TestResolve_NoConfigFile(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	_, err := Resolve("anything")
-	if err == nil {
+	if _, err := Resolve("anything"); err == nil {
 		t.Fatal("expected error when no config file exists")
 	}
 }
@@ -174,8 +169,7 @@ func TestSetDefault(t *testing.T) {
 		t.Fatalf("Add failed: %v", err)
 	}
 
-	err := SetDefault("prod")
-	if err != nil {
+	if err := SetDefault("prod"); err != nil {
 		t.Fatalf("SetDefault failed: %v", err)
 	}
 
@@ -192,8 +186,7 @@ func TestSetDefault_NonExistent(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	err := SetDefault("nonexistent")
-	if err == nil {
+	if err := SetDefault("nonexistent"); err == nil {
 		t.Fatal("expected error when setting non-existent profile as default")
 	}
 }
@@ -209,8 +202,7 @@ func TestClearDefault(t *testing.T) {
 		t.Fatalf("SetDefault failed: %v", err)
 	}
 
-	err := ClearDefault()
-	if err != nil {
+	if err := ClearDefault(); err != nil {
 		t.Fatalf("ClearDefault failed: %v", err)
 	}
 

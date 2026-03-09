@@ -91,8 +91,7 @@ func RenderComparisonText(w io.Writer, result comparator.ComparisonResult) error
 	}
 	tw.printf("\n")
 
-	changes := s.NodesAdded + s.NodesRemoved + s.NodesModified + s.NodesTypeChanged
-	if changes == 0 {
+	if changes := s.NodesAdded + s.NodesRemoved + s.NodesModified + s.NodesTypeChanged; changes == 0 {
 		tw.printf("%s%sPlans are identical.%s\n", colorBold, colorGreen, colorReset)
 		return tw.err
 	}
@@ -112,9 +111,8 @@ func RenderComparisonText(w io.Writer, result comparator.ComparisonResult) error
 }
 
 func (tw *textWriter) renderDelta(d comparator.NodeDelta, depth int) {
-	indent := strings.Repeat("  ", depth+1)
 
-	switch d.ChangeType {
+	switch indent := strings.Repeat("  ", depth+1); d.ChangeType {
 	case comparator.NoChange:
 		for _, child := range d.Children {
 			tw.renderDelta(child, depth)

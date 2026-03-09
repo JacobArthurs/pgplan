@@ -67,9 +67,7 @@ func TestBuildContext_NoCTEs(t *testing.T) {
 		RelationName: "users",
 	}
 
-	ctx := BuildContext(&root)
-
-	if len(ctx.CTEs) != 0 {
+	if ctx := BuildContext(&root); len(ctx.CTEs) != 0 {
 		t.Errorf("expected 0 CTEs, got %d", len(ctx.CTEs))
 	}
 }
@@ -88,9 +86,7 @@ func TestBuildContext_AllNodesFlattened(t *testing.T) {
 		},
 	}
 
-	ctx := BuildContext(&root)
-
-	if len(ctx.AllNodes) != 5 {
+	if ctx := BuildContext(&root); len(ctx.AllNodes) != 5 {
 		t.Errorf("expected 5 nodes, got %d", len(ctx.AllNodes))
 	}
 }
@@ -141,8 +137,8 @@ func TestBuildContext_DepthTracking(t *testing.T) {
 }
 
 func TestExtractConditionColumns_Simple(t *testing.T) {
-	cols := ExtractConditionColumns("(users.email = 'test@test.com')")
-	if len(cols) != 1 || cols[0] != "email" {
+
+	if cols := ExtractConditionColumns("(users.email = 'test@test.com')"); len(cols) != 1 || cols[0] != "email" {
 		t.Errorf("got %v, want [email]", cols)
 	}
 }
@@ -161,8 +157,8 @@ func TestExtractConditionColumns_MultipleColumns(t *testing.T) {
 }
 
 func TestExtractConditionColumns_WithCast(t *testing.T) {
-	cols := ExtractConditionColumns("((action_code)::text = '4'::text)")
-	if len(cols) != 1 || cols[0] != "action_code" {
+
+	if cols := ExtractConditionColumns("((action_code)::text = '4'::text)"); len(cols) != 1 || cols[0] != "action_code" {
 		t.Errorf("got %v, want [action_code]", cols)
 	}
 }
@@ -178,15 +174,15 @@ func TestExtractConditionColumns_LowerFunction(t *testing.T) {
 }
 
 func TestExtractConditionColumns_Empty(t *testing.T) {
-	cols := ExtractConditionColumns("")
-	if cols != nil {
+
+	if cols := ExtractConditionColumns(""); cols != nil {
 		t.Errorf("expected nil, got %v", cols)
 	}
 }
 
 func TestExtractConditionColumns_DateComparison(t *testing.T) {
-	cols := ExtractConditionColumns("(clep_ibt_score.import_date > '2023-01-27'::date)")
-	if len(cols) != 1 || cols[0] != "import_date" {
+
+	if cols := ExtractConditionColumns("(clep_ibt_score.import_date > '2023-01-27'::date)"); len(cols) != 1 || cols[0] != "import_date" {
 		t.Errorf("got %v, want [import_date]", cols)
 	}
 }
@@ -195,8 +191,7 @@ func TestConditionColumnsNotIn_MissingColumn(t *testing.T) {
 	filter := "((action_code)::text = '4'::text)"
 	indexCond := "(import_date > '2023-01-27'::date)"
 
-	missing := ConditionColumnsNotIn(filter, indexCond)
-	if len(missing) != 1 || missing[0] != "action_code" {
+	if missing := ConditionColumnsNotIn(filter, indexCond); len(missing) != 1 || missing[0] != "action_code" {
 		t.Errorf("got %v, want [action_code]", missing)
 	}
 }
@@ -205,57 +200,56 @@ func TestConditionColumnsNotIn_AllCovered(t *testing.T) {
 	filter := "(import_date > '2023-01-01')"
 	indexCond := "(import_date > '2023-01-01')"
 
-	missing := ConditionColumnsNotIn(filter, indexCond)
-	if len(missing) != 0 {
+	if missing := ConditionColumnsNotIn(filter, indexCond); len(missing) != 0 {
 		t.Errorf("expected no missing columns, got %v", missing)
 	}
 }
 
 func TestConditionColumnsNotIn_EmptyFilter(t *testing.T) {
-	missing := ConditionColumnsNotIn("", "(id > 0)")
-	if missing != nil {
+
+	if missing := ConditionColumnsNotIn("", "(id > 0)"); missing != nil {
 		t.Errorf("expected nil, got %v", missing)
 	}
 }
 
 func TestExtractLiteralValue_SimpleEquality(t *testing.T) {
-	val := ExtractLiteralValue("((action_code)::text = '4'::text)")
-	if val != "4" {
+
+	if val := ExtractLiteralValue("((action_code)::text = '4'::text)"); val != "4" {
 		t.Errorf("got %q, want %q", val, "4")
 	}
 }
 
 func TestExtractLiteralValue_NoEquality(t *testing.T) {
-	val := ExtractLiteralValue("(import_date > '2023-01-01'::date)")
-	if val != "" {
+
+	if val := ExtractLiteralValue("(import_date > '2023-01-01'::date)"); val != "" {
 		t.Errorf("expected empty for >, got %q", val)
 	}
 }
 
 func TestExtractLiteralValue_NotEqual(t *testing.T) {
-	val := ExtractLiteralValue("(status <> 'inactive'::text)")
-	if val != "" {
+
+	if val := ExtractLiteralValue("(status <> 'inactive'::text)"); val != "" {
 		t.Errorf("expected empty for <>, got %q", val)
 	}
 }
 
 func TestExtractLiteralValue_GreaterEqual(t *testing.T) {
-	val := ExtractLiteralValue("(import_date >= '2023-01-01'::date)")
-	if val != "" {
+
+	if val := ExtractLiteralValue("(import_date >= '2023-01-01'::date)"); val != "" {
 		t.Errorf("expected empty for >=, got %q", val)
 	}
 }
 
 func TestExtractLiteralValue_EscapedQuote(t *testing.T) {
-	val := ExtractLiteralValue("(name = 'O''Brien'::text)")
-	if val != "O'Brien" {
+
+	if val := ExtractLiteralValue("(name = 'O''Brien'::text)"); val != "O'Brien" {
 		t.Errorf("got %q, want %q", val, "O'Brien")
 	}
 }
 
 func TestExtractLiteralValue_Empty(t *testing.T) {
-	val := ExtractLiteralValue("")
-	if val != "" {
+
+	if val := ExtractLiteralValue(""); val != "" {
 		t.Errorf("expected empty, got %q", val)
 	}
 }

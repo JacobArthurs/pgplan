@@ -723,8 +723,7 @@ func TestAnalyze_FullPlan(t *testing.T) {
 		t.Fatal("expected findings for disk sort + seq scan with filter")
 	}
 
-	criticals := findBySeverity(result.Findings, Critical)
-	if len(criticals) == 0 {
+	if criticals := findBySeverity(result.Findings, Critical); len(criticals) == 0 {
 		t.Error("expected at least one critical finding (disk sort)")
 	}
 

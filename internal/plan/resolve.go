@@ -15,16 +15,14 @@ func Resolve(input, dbConn, label string) (ExplainOutput, error) {
 		return ExplainOutput{}, err
 	}
 
-	inputType := detectType(data, input)
-
 	var plans []ExplainOutput
 
-	switch inputType {
+	switch inputType := detectType(data, input); inputType {
 	case "json":
 		plans, err = ParseJSONPlan(data)
 	case "sql":
-		trimmed := strings.TrimSpace(string(data))
-		if strings.HasPrefix(strings.ToUpper(trimmed), "EXPLAIN") {
+
+		if trimmed := strings.TrimSpace(string(data)); strings.HasPrefix(strings.ToUpper(trimmed), "EXPLAIN") {
 			return ExplainOutput{}, fmt.Errorf("input should not include EXPLAIN prefix - provide the raw query only")
 		}
 
@@ -75,9 +73,7 @@ func readInteractive(label string) ([]byte, error) {
 		return nil, err
 	}
 
-	trimmed := strings.TrimSpace(string(data))
-
-	if (strings.HasPrefix(trimmed, "[") || strings.HasPrefix(trimmed, "{")) &&
+	if trimmed := strings.TrimSpace(string(data)); (strings.HasPrefix(trimmed, "[") || strings.HasPrefix(trimmed, "{")) &&
 		!json.Valid(data) {
 		return nil, fmt.Errorf("input appears truncated; for large inputs use: pgplan analyze <file>")
 	}
