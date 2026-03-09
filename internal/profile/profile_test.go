@@ -1,8 +1,6 @@
 package profile
 
-import (
-	"testing"
-)
+import "testing"
 
 func setupTestConfig(t *testing.T) func() {
 	t.Helper()

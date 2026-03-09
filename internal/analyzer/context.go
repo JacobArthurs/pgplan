@@ -33,7 +33,7 @@ func BuildContext(root *plan.PlanNode) PlanContext {
 	return ctx
 }
 
-func collectContext(node *plan.PlanNode, parent *plan.PlanNode, depth int, ctx *PlanContext) {
+func collectContext(node, parent *plan.PlanNode, depth int, ctx *PlanContext) {
 	ctx.AllNodes = append(ctx.AllNodes, &NodeRef{
 		Node:   node,
 		Parent: parent,

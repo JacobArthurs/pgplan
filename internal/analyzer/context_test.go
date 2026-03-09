@@ -82,9 +82,7 @@ func TestBuildContext_AllNodesFlattened(t *testing.T) {
 				NodeType: "Hash Join",
 				Plans: []plan.PlanNode{
 					{NodeType: "Seq Scan"},
-					{NodeType: "Hash", Plans: []plan.PlanNode{
-						{NodeType: "Seq Scan"},
-					}},
+					{NodeType: "Hash", Plans: []plan.PlanNode{{NodeType: "Seq Scan"}}},
 				},
 			},
 		},
@@ -100,9 +98,7 @@ func TestBuildContext_AllNodesFlattened(t *testing.T) {
 func TestBuildContext_ParentReferences(t *testing.T) {
 	root := plan.PlanNode{
 		NodeType: "Sort",
-		Plans: []plan.PlanNode{
-			{NodeType: "Seq Scan", RelationName: "users"},
-		},
+		Plans:    []plan.PlanNode{{NodeType: "Seq Scan", RelationName: "users"}},
 	}
 
 	ctx := BuildContext(&root)
@@ -122,9 +118,7 @@ func TestBuildContext_DepthTracking(t *testing.T) {
 	root := plan.PlanNode{
 		NodeType: "Limit",
 		Plans: []plan.PlanNode{
-			{NodeType: "Sort", Plans: []plan.PlanNode{
-				{NodeType: "Seq Scan"},
-			}},
+			{NodeType: "Sort", Plans: []plan.PlanNode{{NodeType: "Seq Scan"}}},
 		},
 	}
 

@@ -212,9 +212,7 @@ func TestDiffChildren_MatchedChildren(t *testing.T) {
 
 func TestDiffChildren_AddedNode(t *testing.T) {
 	c := defaultComparator()
-	oldKids := []plan.PlanNode{
-		{NodeType: "Seq Scan", TotalCost: 10.0},
-	}
+	oldKids := []plan.PlanNode{{NodeType: "Seq Scan", TotalCost: 10.0}}
 	newKids := []plan.PlanNode{
 		{NodeType: "Seq Scan", TotalCost: 10.0},
 		{NodeType: "Hash", TotalCost: 5.0},
@@ -236,9 +234,7 @@ func TestDiffChildren_RemovedNode(t *testing.T) {
 		{NodeType: "Seq Scan", TotalCost: 10.0},
 		{NodeType: "Hash", TotalCost: 5.0},
 	}
-	newKids := []plan.PlanNode{
-		{NodeType: "Seq Scan", TotalCost: 10.0},
-	}
+	newKids := []plan.PlanNode{{NodeType: "Seq Scan", TotalCost: 10.0}}
 
 	deltas := c.diffChildren(oldKids, newKids)
 

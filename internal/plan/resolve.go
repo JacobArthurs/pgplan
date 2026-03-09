@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func Resolve(input string, dbConn string, label string) (ExplainOutput, error) {
+func Resolve(input, dbConn, label string) (ExplainOutput, error) {
 	data, err := readInput(input, label)
 	if err != nil {
 		return ExplainOutput{}, err
@@ -51,7 +51,7 @@ then provide the complete JSON output`)
 	return plans[0], nil
 }
 
-func readInput(input string, label string) ([]byte, error) {
+func readInput(input, label string) ([]byte, error) {
 	switch input {
 	case "":
 		return readInteractive(label)
@@ -77,8 +77,7 @@ func readInteractive(label string) ([]byte, error) {
 
 	trimmed := strings.TrimSpace(string(data))
 
-	if (strings.HasPrefix(trimmed, "[") ||
-		strings.HasPrefix(trimmed, "{")) &&
+	if (strings.HasPrefix(trimmed, "[") || strings.HasPrefix(trimmed, "{")) &&
 		!json.Valid(data) {
 		return nil, fmt.Errorf("input appears truncated; for large inputs use: pgplan analyze <file>")
 	}

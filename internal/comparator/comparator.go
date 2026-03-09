@@ -1,8 +1,6 @@
 package comparator
 
-import (
-	"github.com/jacobarthurs/pgplan/internal/plan"
-)
+import "github.com/jacobarthurs/pgplan/internal/plan"
 
 type Comparator struct {
 	Threshold float64

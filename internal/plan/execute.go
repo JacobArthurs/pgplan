@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func Execute(dbConn string, sql string) ([]ExplainOutput, error) {
+func Execute(dbConn, sql string) ([]ExplainOutput, error) {
 	ctx := context.Background()
 
 	conn, err := pgx.Connect(ctx, dbConn)
