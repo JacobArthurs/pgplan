@@ -81,9 +81,7 @@ func TestDiffNodes_TimeImproved(t *testing.T) {
 		ActualLoops:     1,
 	}
 
-	delta := c.diffNodes(&old, &new)
-
-	if delta.TimeDir != Improved {
+	if delta := c.diffNodes(&old, &new); delta.TimeDir != Improved {
 		t.Errorf("TimeDir = %v, want Improved", delta.TimeDir)
 	}
 }
@@ -185,9 +183,7 @@ func TestDiffNodes_BufferDirection(t *testing.T) {
 		ActualLoops:      1,
 	}
 
-	delta := c.diffNodes(&old, &new)
-
-	if delta.BufferDir != Improved {
+	if delta := c.diffNodes(&old, &new); delta.BufferDir != Improved {
 		t.Errorf("BufferDir = %v, want Improved", delta.BufferDir)
 	}
 }
@@ -203,18 +199,14 @@ func TestDiffChildren_MatchedChildren(t *testing.T) {
 		{NodeType: "Hash", TotalCost: 5.0, ActualLoops: 1},
 	}
 
-	deltas := c.diffChildren(oldKids, newKids)
-
-	if len(deltas) != 2 {
+	if deltas := c.diffChildren(oldKids, newKids); len(deltas) != 2 {
 		t.Fatalf("expected 2 deltas, got %d", len(deltas))
 	}
 }
 
 func TestDiffChildren_AddedNode(t *testing.T) {
 	c := defaultComparator()
-	oldKids := []plan.PlanNode{
-		{NodeType: "Seq Scan", TotalCost: 10.0},
-	}
+	oldKids := []plan.PlanNode{{NodeType: "Seq Scan", TotalCost: 10.0}}
 	newKids := []plan.PlanNode{
 		{NodeType: "Seq Scan", TotalCost: 10.0},
 		{NodeType: "Hash", TotalCost: 5.0},
@@ -236,9 +228,7 @@ func TestDiffChildren_RemovedNode(t *testing.T) {
 		{NodeType: "Seq Scan", TotalCost: 10.0},
 		{NodeType: "Hash", TotalCost: 5.0},
 	}
-	newKids := []plan.PlanNode{
-		{NodeType: "Seq Scan", TotalCost: 10.0},
-	}
+	newKids := []plan.PlanNode{{NodeType: "Seq Scan", TotalCost: 10.0}}
 
 	deltas := c.diffChildren(oldKids, newKids)
 
@@ -252,8 +242,8 @@ func TestDiffChildren_RemovedNode(t *testing.T) {
 
 func TestDiffChildren_EmptyBoth(t *testing.T) {
 	c := defaultComparator()
-	deltas := c.diffChildren(nil, nil)
-	if len(deltas) != 0 {
+
+	if deltas := c.diffChildren(nil, nil); len(deltas) != 0 {
 		t.Errorf("expected 0 deltas, got %d", len(deltas))
 	}
 }
@@ -322,8 +312,8 @@ func TestCompare_IdenticalPlans(t *testing.T) {
 	if s.TimeDelta != 0 {
 		t.Errorf("TimeDelta = %f, want 0", s.TimeDelta)
 	}
-	total := s.NodesAdded + s.NodesRemoved + s.NodesModified + s.NodesTypeChanged
-	if total != 0 {
+
+	if total := s.NodesAdded + s.NodesRemoved + s.NodesModified + s.NodesTypeChanged; total != 0 {
 		t.Errorf("expected 0 changes, got %d", total)
 	}
 }
@@ -339,8 +329,7 @@ func TestCompare_VerdictFasterAndCheaper(t *testing.T) {
 		ExecutionTime: 5.0,
 	}
 
-	result := c.Compare(old, new)
-	if result.Summary.Verdict != "faster and cheaper" {
+	if result := c.Compare(old, new); result.Summary.Verdict != "faster and cheaper" {
 		t.Errorf("Verdict = %q, want 'faster and cheaper'", result.Summary.Verdict)
 	}
 }
@@ -356,8 +345,7 @@ func TestCompare_VerdictSlowerAndMoreExpensive(t *testing.T) {
 		ExecutionTime: 50.0,
 	}
 
-	result := c.Compare(old, new)
-	if result.Summary.Verdict != "slower and more expensive" {
+	if result := c.Compare(old, new); result.Summary.Verdict != "slower and more expensive" {
 		t.Errorf("Verdict = %q, want 'slower and more expensive'", result.Summary.Verdict)
 	}
 }
@@ -369,8 +357,7 @@ func TestCompare_VerdictNoChange(t *testing.T) {
 		ExecutionTime: 5.0,
 	}
 
-	result := c.Compare(p, p)
-	if result.Summary.Verdict != "no significant change" {
+	if result := c.Compare(p, p); result.Summary.Verdict != "no significant change" {
 		t.Errorf("Verdict = %q, want 'no significant change'", result.Summary.Verdict)
 	}
 }
@@ -387,8 +374,8 @@ func TestPctChange(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := pctChange(tt.old, tt.new)
-		if got != tt.want {
+
+		if got := pctChange(tt.old, tt.new); got != tt.want {
 			t.Errorf("pctChange(%f, %f) = %f, want %f", tt.old, tt.new, got, tt.want)
 		}
 	}
@@ -410,47 +397,44 @@ func TestDirection(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := c.direction(tt.old, tt.new, tt.lowerIsBetter)
-		if got != tt.want {
+
+		if got := c.direction(tt.old, tt.new, tt.lowerIsBetter); got != tt.want {
 			t.Errorf("direction(%f, %f, %v) = %v, want %v", tt.old, tt.new, tt.lowerIsBetter, got, tt.want)
 		}
 	}
 }
 
 func TestIsSignificant_CostChange(t *testing.T) {
-	c := defaultComparator()
-	d := NodeDelta{
+
+	if c, d := defaultComparator(), (NodeDelta{
 		OldCost: 100.0,
 		NewCost: 110.0,
 		CostPct: 10.0,
-	}
-	if !c.isSignificant(d) {
+	}); !c.isSignificant(d) {
 		t.Error("10% cost change should be significant")
 	}
 }
 
 func TestIsSignificant_TinyChange(t *testing.T) {
-	c := defaultComparator()
-	d := NodeDelta{
+
+	if c, d := defaultComparator(), (NodeDelta{
 		OldCost: 100.0,
 		NewCost: 100.5,
 		CostPct: 0.5,
 		OldTime: 10.0,
 		NewTime: 10.05,
 		TimePct: 0.5,
-	}
-	if c.isSignificant(d) {
+	}); c.isSignificant(d) {
 		t.Error("0.5% change should not be significant")
 	}
 }
 
 func TestIsSignificant_SortSpillChange(t *testing.T) {
-	c := defaultComparator()
-	d := NodeDelta{
+
+	if c, d := defaultComparator(), (NodeDelta{
 		OldSortSpill: true,
 		NewSortSpill: false,
-	}
-	if !c.isSignificant(d) {
+	}); !c.isSignificant(d) {
 		t.Error("sort spill change should be significant")
 	}
 }

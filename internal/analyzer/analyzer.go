@@ -26,7 +26,7 @@ func Analyze(output plan.ExplainOutput) AnalysisResult {
 	return result
 }
 
-func walkTree(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, rules []Rule, ctx *PlanContext, result *AnalysisResult) {
+func walkTree(node, parent *plan.PlanNode, childIdx int, rules []Rule, ctx *PlanContext, result *AnalysisResult) {
 	for _, rule := range rules {
 		findings := rule(node, parent, childIdx, ctx)
 		result.Findings = append(result.Findings, findings...)

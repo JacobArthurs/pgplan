@@ -33,7 +33,7 @@ func BuildContext(root *plan.PlanNode) PlanContext {
 	return ctx
 }
 
-func collectContext(node *plan.PlanNode, parent *plan.PlanNode, depth int, ctx *PlanContext) {
+func collectContext(node, parent *plan.PlanNode, depth int, ctx *PlanContext) {
 	ctx.AllNodes = append(ctx.AllNodes, &NodeRef{
 		Node:   node,
 		Parent: parent,
@@ -70,15 +70,15 @@ func ExtractConditionColumns(cond string) []string {
 	seen := make(map[string]bool)
 	var cols []string
 	for _, m := range columnRefRe.FindAllStringSubmatch(cleaned, -1) {
-		col := m[2]
-		if !seen[col] {
+
+		if col := m[2]; !seen[col] {
 			seen[col] = true
 			cols = append(cols, col)
 		}
 	}
 	for _, m := range castColRe.FindAllStringSubmatch(cleaned, -1) {
-		col := m[1]
-		if !seen[col] {
+
+		if col := m[1]; !seen[col] {
 			seen[col] = true
 			cols = append(cols, col)
 		}

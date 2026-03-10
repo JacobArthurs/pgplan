@@ -41,7 +41,7 @@ const (
 )
 
 // childIdx is the node's index within parent.Plans (-1 for root).
-type Rule func(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding
+type Rule func(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding
 
 var defaultRules = []Rule{
 	checkIndexScanFilterInefficiency,
@@ -61,7 +61,7 @@ var defaultRules = []Rule{
 	checkWideRows,
 }
 
-func checkIndexScanFilterInefficiency(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkIndexScanFilterInefficiency(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.NodeType != "Index Scan" && node.NodeType != "Index Only Scan" {
 		return nil
 	}
@@ -88,20 +88,17 @@ func checkIndexScanFilterInefficiency(node *plan.PlanNode, parent *plan.PlanNode
 		severity = Critical
 	}
 
-	missingCols := ConditionColumnsNotIn(node.Filter, node.IndexCond)
-	indexCols := ExtractConditionColumns(node.IndexCond)
-
 	desc := fmt.Sprintf("%s on %s using %s filters out %.2f%% of rows (%d of %d)",
 		node.NodeType, node.RelationName, node.IndexName,
 		removedPct, node.RowsRemovedByFilter, total)
 
 	var suggestion string
-	if len(missingCols) > 0 && len(indexCols) > 0 {
-		literal := ExtractLiteralValue(node.Filter)
+	if missingCols, indexCols := ConditionColumnsNotIn(node.Filter, node.IndexCond), ExtractConditionColumns(node.IndexCond); len(missingCols) > 0 && len(indexCols) > 0 {
+
 		compositeCols := strings.Join(append(indexCols, missingCols...), ", ")
 		suggestion = fmt.Sprintf("Column `%s` in filter is not in index; consider composite index on (%s)",
 			strings.Join(missingCols, ", "), compositeCols)
-		if literal != "" && len(missingCols) == 1 {
+		if literal := ExtractLiteralValue(node.Filter); literal != "" && len(missingCols) == 1 {
 			suggestion += fmt.Sprintf(" or partial index WHERE %s = '%s'", missingCols[0], literal)
 		}
 	} else {
@@ -117,7 +114,7 @@ func checkIndexScanFilterInefficiency(node *plan.PlanNode, parent *plan.PlanNode
 	}}
 }
 
-func checkSeqScanInJoin(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkSeqScanInJoin(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if parent == nil {
 		return nil
 	}
@@ -146,18 +143,15 @@ func checkSeqScanInJoin(node *plan.PlanNode, parent *plan.PlanNode, childIdx int
 		severity = Critical
 	}
 
-	joinCol := extractJoinColumnForTable(parent, node.RelationName, node.Alias)
-
 	desc := fmt.Sprintf("Seq Scan on %s scans %d rows to join against %d rows",
 		node.RelationName, rows, siblingRows)
 
-	siblingSource := findSiblingSource(childIdx, parent)
-	if siblingSource != "" {
+	if siblingSource := findSiblingSource(childIdx, parent); siblingSource != "" {
 		desc += fmt.Sprintf(" from CTE %s", siblingSource)
 	}
 
 	suggestion := "Consider index on join column to enable index lookup instead of full scan"
-	if joinCol != "" {
+	if joinCol := extractJoinColumnForTable(parent, node.RelationName, node.Alias); joinCol != "" {
 		joinCond := parent.HashCond
 		if joinCond == "" {
 			joinCond = parent.MergeCond
@@ -178,7 +172,7 @@ func checkSeqScanInJoin(node *plan.PlanNode, parent *plan.PlanNode, childIdx int
 	}}
 }
 
-func checkSeqScanStandalone(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkSeqScanStandalone(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.NodeType != "Seq Scan" {
 		return nil
 	}
@@ -216,16 +210,14 @@ func checkSeqScanStandalone(node *plan.PlanNode, parent *plan.PlanNode, childIdx
 		severity = Critical
 	}
 
-	filterCols := ExtractConditionColumns(node.Filter)
-
 	desc := fmt.Sprintf("Seq Scan on %s filters out %.2f%% of rows (%d of %d)",
 		node.RelationName, removedPct, node.RowsRemovedByFilter, total)
 
 	suggestion := fmt.Sprintf("Add an index on %s covering the filter condition", node.RelationName)
-	if len(filterCols) > 0 {
-		literal := ExtractLiteralValue(node.Filter)
+	if filterCols := ExtractConditionColumns(node.Filter); len(filterCols) > 0 {
+
 		suggestion = fmt.Sprintf("Consider index on %s(%s)", node.RelationName, strings.Join(filterCols, ", "))
-		if literal != "" && len(filterCols) == 1 {
+		if literal := ExtractLiteralValue(node.Filter); literal != "" && len(filterCols) == 1 {
 			suggestion += fmt.Sprintf(" or partial index WHERE %s = '%s'", filterCols[0], literal)
 		}
 	}
@@ -239,7 +231,7 @@ func checkSeqScanStandalone(node *plan.PlanNode, parent *plan.PlanNode, childIdx
 	}}
 }
 
-func checkBitmapHeapRecheck(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkBitmapHeapRecheck(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.NodeType != "Bitmap Heap Scan" {
 		return nil
 	}
@@ -269,7 +261,7 @@ func checkBitmapHeapRecheck(node *plan.PlanNode, parent *plan.PlanNode, childIdx
 	}}
 }
 
-func checkNestedLoopHighLoops(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkNestedLoopHighLoops(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.NodeType != "Nested Loop" {
 		return nil
 	}
@@ -309,7 +301,7 @@ func checkNestedLoopHighLoops(node *plan.PlanNode, parent *plan.PlanNode, childI
 	}}
 }
 
-func checkSortSpill(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkSortSpill(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.SortSpaceType != "Disk" {
 		return nil
 	}
@@ -322,7 +314,7 @@ func checkSortSpill(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ct
 	}}
 }
 
-func checkHashSpill(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkHashSpill(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.HashBatches <= 1 {
 		return nil
 	}
@@ -339,7 +331,7 @@ func checkHashSpill(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ct
 	}}
 }
 
-func checkTempBlocks(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkTempBlocks(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	total := node.TempReadBlocks + node.TempWrittenBlocks
 	if total == 0 {
 		return nil
@@ -354,7 +346,7 @@ func checkTempBlocks(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, c
 	}}
 }
 
-func checkWorkerMismatch(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkWorkerMismatch(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.WorkersPlanned == 0 || node.WorkersLaunched >= node.WorkersPlanned {
 		return nil
 	}
@@ -367,7 +359,7 @@ func checkWorkerMismatch(node *plan.PlanNode, parent *plan.PlanNode, childIdx in
 	}}
 }
 
-func checkLargeJoinFilterRemoval(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkLargeJoinFilterRemoval(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.RowsRemovedByJoinFilter < JoinFilterRemovalWarning {
 		return nil
 	}
@@ -384,7 +376,7 @@ func checkLargeJoinFilterRemoval(node *plan.PlanNode, parent *plan.PlanNode, chi
 	}}
 }
 
-func checkMaterializeHighLoops(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkMaterializeHighLoops(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.NodeType != "Materialize" {
 		return nil
 	}
@@ -409,7 +401,7 @@ func checkMaterializeHighLoops(node *plan.PlanNode, parent *plan.PlanNode, child
 	}}
 }
 
-func checkIndexScanLowSelectivity(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkIndexScanLowSelectivity(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.NodeType != "Index Scan" && node.NodeType != "Index Only Scan" {
 		return nil
 	}
@@ -447,7 +439,7 @@ func checkIndexScanLowSelectivity(node *plan.PlanNode, parent *plan.PlanNode, ch
 	}}
 }
 
-func checkSubPlanHighLoops(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkSubPlanHighLoops(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.ParentRelationship != "SubPlan" {
 		return nil
 	}
@@ -472,7 +464,7 @@ func checkSubPlanHighLoops(node *plan.PlanNode, parent *plan.PlanNode, childIdx 
 	}}
 }
 
-func checkWideRows(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkWideRows(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.PlanWidth < WideRowThreshold {
 		return nil
 	}
@@ -494,7 +486,7 @@ func checkWideRows(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx
 	}}
 }
 
-func checkParallelOverhead(node *plan.PlanNode, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
+func checkParallelOverhead(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	if node.NodeType != "Gather" && node.NodeType != "Gather Merge" {
 		return nil
 	}
@@ -616,7 +608,7 @@ func collectInflatedFromCTE(root *plan.PlanNode, cte *CTEInfo, ctx *PlanContext)
 	return affected
 }
 
-func collectAncestors(current *plan.PlanNode, target *plan.PlanNode, ancestors map[*plan.PlanNode]bool) bool {
+func collectAncestors(current, target *plan.PlanNode, ancestors map[*plan.PlanNode]bool) bool {
 	if current == target {
 		return true
 	}

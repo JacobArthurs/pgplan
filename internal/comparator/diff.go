@@ -145,8 +145,8 @@ func (c *Comparator) isSignificant(d NodeDelta) bool {
 		return true
 	}
 	if d.OldLoops != d.NewLoops && d.OldLoops > 0 {
-		loopRatio := float64(d.NewLoops) / float64(d.OldLoops)
-		if loopRatio > 2 || loopRatio < 0.5 {
+
+		if loopRatio := float64(d.NewLoops) / float64(d.OldLoops); loopRatio > 2 || loopRatio < 0.5 {
 			return true
 		}
 	}

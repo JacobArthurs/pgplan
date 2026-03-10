@@ -325,15 +325,15 @@ func TestParseJSONPlan_CTESubplan(t *testing.T) {
 }
 
 func TestParseJSONPlan_EmptyInput(t *testing.T) {
-	_, err := ParseJSONPlan([]byte("[]"))
-	if err == nil {
+
+	if _, err := ParseJSONPlan([]byte("[]")); err == nil {
 		t.Fatal("expected error for empty plan")
 	}
 }
 
 func TestParseJSONPlan_InvalidJSON(t *testing.T) {
-	_, err := ParseJSONPlan([]byte("not json"))
-	if err == nil {
+
+	if _, err := ParseJSONPlan([]byte("not json")); err == nil {
 		t.Fatal("expected error for invalid JSON")
 	}
 }

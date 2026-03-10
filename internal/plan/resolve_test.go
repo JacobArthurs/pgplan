@@ -7,62 +7,62 @@ import (
 )
 
 func TestDetectType_JSONExtension(t *testing.T) {
-	result := detectType([]byte("anything"), "plan.json")
-	if result != "json" {
+
+	if result := detectType([]byte("anything"), "plan.json"); result != "json" {
 		t.Errorf("got %q, want json", result)
 	}
 }
 
 func TestDetectType_SQLExtension(t *testing.T) {
-	result := detectType([]byte("anything"), "query.sql")
-	if result != "sql" {
+
+	if result := detectType([]byte("anything"), "query.sql"); result != "sql" {
 		t.Errorf("got %q, want sql", result)
 	}
 }
 
 func TestDetectType_TxtExtension(t *testing.T) {
-	result := detectType([]byte("anything"), "explain.txt")
-	if result != "text" {
+
+	if result := detectType([]byte("anything"), "explain.txt"); result != "text" {
 		t.Errorf("got %q, want text", result)
 	}
 }
 
 func TestDetectType_JSONContent(t *testing.T) {
 	data := []byte(`[{"Plan": {"Node Type": "Seq Scan"}}]`)
-	result := detectType(data, "")
-	if result != "json" {
+
+	if result := detectType(data, ""); result != "json" {
 		t.Errorf("got %q, want json", result)
 	}
 }
 
 func TestDetectType_JSONContentWithWhitespace(t *testing.T) {
 	data := []byte(`  [{"Plan": {"Node Type": "Seq Scan"}}]`)
-	result := detectType(data, "")
-	if result != "json" {
+
+	if result := detectType(data, ""); result != "json" {
 		t.Errorf("got %q, want json", result)
 	}
 }
 
 func TestDetectType_SQLContent(t *testing.T) {
 	data := []byte("SELECT * FROM users WHERE id = 1")
-	result := detectType(data, "")
-	if result != "sql" {
+
+	if result := detectType(data, ""); result != "sql" {
 		t.Errorf("got %q, want sql (default fallback)", result)
 	}
 }
 
 func TestDetectType_ExtensionOverridesContent(t *testing.T) {
 	data := []byte(`[{"Plan": {}}]`)
-	result := detectType(data, "queries.sql")
-	if result != "sql" {
+
+	if result := detectType(data, "queries.sql"); result != "sql" {
 		t.Errorf("got %q, want sql (extension takes priority)", result)
 	}
 }
 
 func TestDetectType_StdinWithJSON(t *testing.T) {
 	data := []byte(`[{"Plan": {"Node Type": "Seq Scan"}}]`)
-	result := detectType(data, "-")
-	if result != "json" {
+
+	if result := detectType(data, "-"); result != "json" {
 		t.Errorf("got %q, want json", result)
 	}
 }
@@ -85,8 +85,8 @@ func TestReadInput_File(t *testing.T) {
 }
 
 func TestReadInput_MissingFile(t *testing.T) {
-	_, err := readInput("/nonexistent/file.json", "")
-	if err == nil {
+
+	if _, err := readInput("/nonexistent/file.json", ""); err == nil {
 		t.Fatal("expected error for missing file")
 	}
 }
@@ -130,8 +130,7 @@ func TestResolve_SQLFileWithoutDB(t *testing.T) {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 
-	_, err := Resolve(path, "", "")
-	if err == nil {
+	if _, err := Resolve(path, "", ""); err == nil {
 		t.Fatal("expected error for SQL input without DB connection")
 	}
 }
@@ -143,8 +142,7 @@ func TestResolve_InvalidJSON(t *testing.T) {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 
-	_, err := Resolve(path, "", "")
-	if err == nil {
+	if _, err := Resolve(path, "", ""); err == nil {
 		t.Fatal("expected error for invalid JSON")
 	}
 }
@@ -156,8 +154,7 @@ func TestResolve_EmptyJSONArray(t *testing.T) {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 
-	_, err := Resolve(path, "", "")
-	if err == nil {
+	if _, err := Resolve(path, "", ""); err == nil {
 		t.Fatal("expected error for empty JSON array")
 	}
 }
@@ -169,8 +166,7 @@ func TestResolve_TruncatedJSON(t *testing.T) {
 		t.Fatalf("WriteFile failed: %v", err)
 	}
 
-	_, err := Resolve(path, "", "")
-	if err == nil {
+	if _, err := Resolve(path, "", ""); err == nil {
 		t.Fatal("expected error for truncated JSON")
 	}
 }
