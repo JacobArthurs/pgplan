@@ -10,6 +10,20 @@ import (
 type PlanContext struct {
 	CTEs     map[string]*CTEInfo
 	AllNodes []*NodeRef
+
+	// BlockSize is the PostgreSQL page size (bytes) used to render block
+	// counts as human-readable sizes in Finding descriptions. Zero means
+	// "use plan.DefaultBlockSize" - see BlockSizeOrDefault.
+	BlockSize int64
+}
+
+// BlockSizeOrDefault returns ctx.BlockSize, falling back to
+// plan.DefaultBlockSize when unset (e.g. contexts built directly by tests).
+func (ctx *PlanContext) BlockSizeOrDefault() int64 {
+	if ctx.BlockSize <= 0 {
+		return plan.DefaultBlockSize
+	}
+	return ctx.BlockSize
 }
 
 type CTEInfo struct {

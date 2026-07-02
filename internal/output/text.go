@@ -3,10 +3,12 @@ package output
 import (
 	"fmt"
 	"io"
+	"math"
 	"strings"
 
 	"github.com/jacobarthurs/pgplan/internal/analyzer"
 	"github.com/jacobarthurs/pgplan/internal/comparator"
+	"github.com/jacobarthurs/pgplan/internal/plan"
 )
 
 const (
@@ -20,8 +22,9 @@ const (
 )
 
 type textWriter struct {
-	w   io.Writer
-	err error
+	w         io.Writer
+	err       error
+	blockSize int64
 }
 
 func (tw *textWriter) printf(format string, args ...any) {
@@ -31,17 +34,34 @@ func (tw *textWriter) printf(format string, args ...any) {
 	_, tw.err = fmt.Fprintf(tw.w, format, args...)
 }
 
-func RenderAnalysisText(w io.Writer, result analyzer.AnalysisResult) error {
-	tw := &textWriter{w: w}
+// bytesOf renders blocks as a human-readable size using tw.blockSize
+// (falling back to plan.DefaultBlockSize when unset).
+func (tw *textWriter) bytesOf(blocks int64) string {
+	blockSize := tw.blockSize
+	if blockSize <= 0 {
+		blockSize = plan.DefaultBlockSize
+	}
+	return plan.FormatBytes(blocks * blockSize)
+}
+
+// RenderAnalysisText renders result as human-readable text. blockSize is the
+// PostgreSQL page size (bytes) used to show block counts as human-readable
+// sizes; pass <= 0 to use plan.DefaultBlockSize.
+func RenderAnalysisText(w io.Writer, result analyzer.AnalysisResult, blockSize int64) error {
+	tw := &textWriter{w: w, blockSize: blockSize}
 
 	tw.printf("%s%sPlan Summary%s\n\n", colorBold, colorCyan, colorReset)
 	tw.printf("  Total Cost:     %.2f\n", result.TotalCost)
+	if result.HasActualRows {
+		tw.printf("  Actual Rows:    %s\n", formatCount(result.ActualRows))
+	}
 	if result.ExecutionTime > 0 {
 		tw.printf("  Execution Time: %.3f ms\n", result.ExecutionTime)
 	}
 	if result.PlanningTime > 0 {
 		tw.printf("  Planning Time:  %.3f ms\n", result.PlanningTime)
 	}
+	tw.renderBufferSummary(result.Buffers, result.SortSpaceUsed)
 	tw.printf("\n")
 
 	if len(result.Findings) == 0 {
@@ -53,7 +73,11 @@ func RenderAnalysisText(w io.Writer, result analyzer.AnalysisResult) error {
 
 	for i, f := range result.Findings {
 		label, color := severityFormat(f.Severity)
-		tw.printf("  %s%-8s%s %s%s\n", color, label, colorReset, f.Description, colorReset)
+		tw.printf("  %s%-8s%s %s%s", color, label, colorReset, f.Description, colorReset)
+		if f.HasActualRows {
+			tw.printf(" %s(actual rows: %s)%s", colorDim, formatCount(f.ActualRows), colorReset)
+		}
+		tw.printf("\n")
 		tw.printf("  %s→ %s%s\n", colorDim, f.Suggestion, colorReset)
 		if i < len(result.Findings)-1 {
 			tw.printf("\n")
@@ -61,6 +85,60 @@ func RenderAnalysisText(w io.Writer, result analyzer.AnalysisResult) error {
 	}
 
 	return tw.err
+}
+
+func (tw *textWriter) renderBufferSummary(b plan.NodeBuffers, sortSpaceUsed int64) {
+	if bufferTotal(b) > 0 {
+		tw.printf("  I/O Read:       %d blocks (%s) (shared %d, local %d, temp %d)\n",
+			b.TotalRead(), tw.bytesOf(b.TotalRead()), b.Shared.Read, b.Local.Read, b.Temp.Read)
+		tw.printf("  I/O Write:      %d blocks (%s) (shared %d, local %d, temp %d)\n",
+			b.TotalWritten(), tw.bytesOf(b.TotalWritten()), b.Shared.Written, b.Local.Written, b.Temp.Written)
+		tw.printf("  Cache Hit:      %d blocks (%s) (shared %d, local %d)\n",
+			b.TotalHit(), tw.bytesOf(b.TotalHit()), b.Shared.Hit, b.Local.Hit)
+		if b.TotalDirtied() > 0 {
+			tw.printf("  Dirtied:        %d blocks (%s) (shared %d, local %d)\n",
+				b.TotalDirtied(), tw.bytesOf(b.TotalDirtied()), b.Shared.Dirtied, b.Local.Dirtied)
+		}
+	}
+	if sortSpaceUsed > 0 {
+		tw.printf("  Sort Volume:    %d kB\n", sortSpaceUsed)
+	}
+}
+
+func bufferTotal(b plan.NodeBuffers) int64 {
+	return b.TotalRead() + b.TotalWritten() + b.TotalHit() + b.TotalDirtied()
+}
+
+func (tw *textWriter) renderBufferSummaryDelta(oldB, newB plan.NodeBuffers, oldSort, newSort int64) {
+	if bufferTotal(oldB) > 0 || bufferTotal(newB) > 0 {
+		tw.printf("  I/O Read:       %s blocks (%s → %s) (shared %s, local %s, temp %s)\n",
+			formatIntDelta(oldB.TotalRead(), newB.TotalRead(), true),
+			tw.bytesOf(oldB.TotalRead()), tw.bytesOf(newB.TotalRead()),
+			formatIntDelta(oldB.Shared.Read, newB.Shared.Read, true),
+			formatIntDelta(oldB.Local.Read, newB.Local.Read, true),
+			formatIntDelta(oldB.Temp.Read, newB.Temp.Read, true))
+		tw.printf("  I/O Write:      %s blocks (%s → %s) (shared %s, local %s, temp %s)\n",
+			formatIntDelta(oldB.TotalWritten(), newB.TotalWritten(), true),
+			tw.bytesOf(oldB.TotalWritten()), tw.bytesOf(newB.TotalWritten()),
+			formatIntDelta(oldB.Shared.Written, newB.Shared.Written, true),
+			formatIntDelta(oldB.Local.Written, newB.Local.Written, true),
+			formatIntDelta(oldB.Temp.Written, newB.Temp.Written, true))
+		tw.printf("  Cache Hit:      %s blocks (%s → %s) (shared %s, local %s)\n",
+			formatIntDelta(oldB.TotalHit(), newB.TotalHit(), false),
+			tw.bytesOf(oldB.TotalHit()), tw.bytesOf(newB.TotalHit()),
+			formatIntDelta(oldB.Shared.Hit, newB.Shared.Hit, false),
+			formatIntDelta(oldB.Local.Hit, newB.Local.Hit, false))
+		if oldB.TotalDirtied() > 0 || newB.TotalDirtied() > 0 {
+			tw.printf("  Dirtied:        %s blocks (%s → %s) (shared %s, local %s)\n",
+				formatIntDelta(oldB.TotalDirtied(), newB.TotalDirtied(), true),
+				tw.bytesOf(oldB.TotalDirtied()), tw.bytesOf(newB.TotalDirtied()),
+				formatIntDelta(oldB.Shared.Dirtied, newB.Shared.Dirtied, true),
+				formatIntDelta(oldB.Local.Dirtied, newB.Local.Dirtied, true))
+		}
+	}
+	if oldSort > 0 || newSort > 0 {
+		tw.printf("  Sort Volume:    %s kB\n", formatIntDelta(oldSort, newSort, true))
+	}
 }
 
 func severityFormat(s analyzer.Severity) (string, string) {
@@ -74,21 +152,24 @@ func severityFormat(s analyzer.Severity) (string, string) {
 	}
 }
 
-func RenderComparisonText(w io.Writer, result comparator.ComparisonResult) error {
-	tw := &textWriter{w: w}
+// RenderComparisonText renders result as human-readable text. blockSize is
+// the PostgreSQL page size (bytes) used to show block counts as
+// human-readable sizes; pass <= 0 to use plan.DefaultBlockSize.
+func RenderComparisonText(w io.Writer, result comparator.ComparisonResult, blockSize int64) error {
+	tw := &textWriter{w: w, blockSize: blockSize}
 	s := result.Summary
 
 	tw.printf("%s%sSummary%s\n\n", colorBold, colorCyan, colorReset)
 	tw.printf("  Cost:           %s\n", formatDelta(s.OldTotalCost, s.NewTotalCost, s.CostPct, s.CostDir, "%.2f"))
 	if s.OldExecutionTime > 0 || s.NewExecutionTime > 0 {
-		tw.printf("  Execution Time: %s\n", formatDelta(s.OldExecutionTime, s.NewExecutionTime, s.TimePct, s.TimeDir, "%.3f ms"))
+		tw.printf("  Execution Time: %s (%s)\n",
+			formatDelta(s.OldExecutionTime, s.NewExecutionTime, s.TimePct, s.TimeDir, "%.3f ms"),
+			formatDurationDelta(s.TimeDelta))
 	}
 	if s.OldPlanningTime > 0 || s.NewPlanningTime > 0 {
 		tw.printf("  Planning Time:  %s\n", formatDelta(s.OldPlanningTime, s.NewPlanningTime, pctChange(s.OldPlanningTime, s.NewPlanningTime), s.PlanningDir, "%.3f ms"))
 	}
-	if s.OldTotalHits > 0 || s.NewTotalHits > 0 || s.OldTotalReads > 0 || s.NewTotalReads > 0 {
-		tw.printf("  Buffers:        hit %d→%d, read %d→%d\n", s.OldTotalHits, s.NewTotalHits, s.OldTotalReads, s.NewTotalReads)
-	}
+	tw.renderBufferSummaryDelta(s.OldBuffers, s.NewBuffers, s.OldSortSpaceUsed, s.NewSortSpaceUsed)
 	tw.printf("\n")
 
 	if changes := s.NodesAdded + s.NodesRemoved + s.NodesModified + s.NodesTypeChanged; changes == 0 {
@@ -260,12 +341,28 @@ func (tw *textWriter) renderBufferChanges(indent string, d comparator.NodeDelta)
 			color = colorRed
 			arrow = "↑"
 		}
-		tw.printf("%s  disk reads: %d → %s%d %s%s\n",
-			indent, d.OldBufferReads, color, d.NewBufferReads, arrow, colorReset)
+		tw.printf("%s  disk reads: %d → %s%d %s%s (%s → %s)\n",
+			indent, d.OldBufferReads, color, d.NewBufferReads, arrow, colorReset,
+			tw.bytesOf(d.OldBufferReads), tw.bytesOf(d.NewBufferReads))
 	}
 	if d.OldBufferHits != d.NewBufferHits {
-		tw.printf("%s  cache hits: %d → %d\n", indent, d.OldBufferHits, d.NewBufferHits)
+		tw.printf("%s  cache hits: %d → %d (%s → %s)\n", indent, d.OldBufferHits, d.NewBufferHits,
+			tw.bytesOf(d.OldBufferHits), tw.bytesOf(d.NewBufferHits))
 	}
+	tw.renderBlockCountsChange(indent, "shared blocks", d.OldBuffers.Shared, d.NewBuffers.Shared, true)
+	tw.renderBlockCountsChange(indent, "local blocks", d.OldBuffers.Local, d.NewBuffers.Local, true)
+	tw.renderBlockCountsChange(indent, "temp blocks", d.OldBuffers.Temp, d.NewBuffers.Temp, false)
+}
+
+func (tw *textWriter) renderBlockCountsChange(indent, label string, oldC, newC plan.BlockCounts, showHitDirtied bool) {
+	if oldC == newC {
+		return
+	}
+	tw.printf("%s  %s: read %d→%d, written %d→%d", indent, label, oldC.Read, newC.Read, oldC.Written, newC.Written)
+	if showHitDirtied {
+		tw.printf(", hit %d→%d, dirtied %d→%d", oldC.Hit, newC.Hit, oldC.Dirtied, newC.Dirtied)
+	}
+	tw.printf("\n")
 }
 
 func (tw *textWriter) renderSpillChanges(indent string, d comparator.NodeDelta) {
@@ -279,6 +376,10 @@ func (tw *textWriter) renderSpillChanges(indent string, d comparator.NodeDelta) 
 	if d.OldHashBatches != d.NewHashBatches {
 		color, arrow := deltaIndicator(int64(d.OldHashBatches), int64(d.NewHashBatches))
 		tw.printf("%s  hash batches: %d → %s%d %s%s\n", indent, d.OldHashBatches, color, d.NewHashBatches, arrow, colorReset)
+	}
+	if d.OldSortSpaceUsed != d.NewSortSpaceUsed {
+		color, arrow := deltaIndicator(d.OldSortSpaceUsed, d.NewSortSpaceUsed)
+		tw.printf("%s  sort volume: %d kB → %s%d kB %s%s\n", indent, d.OldSortSpaceUsed, color, d.NewSortSpaceUsed, arrow, colorReset)
 	}
 }
 
@@ -295,6 +396,33 @@ func formatDelta(oldVal, newVal, pct float64, dir comparator.Direction, fmtStr s
 	oldStr := fmt.Sprintf(fmtStr, oldVal)
 	newStr := fmt.Sprintf(fmtStr, newVal)
 	return fmt.Sprintf("%s → %s%s %s (%+.1f%%)%s", oldStr, color, newStr, arrow, pct, colorReset)
+}
+
+// formatIntDelta renders an old→new block/kB count with the same
+// "value → colored value arrow (+pct%)" shape as formatDelta. Unlike
+// dirArrow, the arrow always tracks the actual numeric direction (↓ for a
+// decrease, ↑ for an increase); lowerIsBetter only controls whether that
+// direction is colored as an improvement (reads, writes, sort volume) or a
+// regression (cache hits).
+func formatIntDelta(oldVal, newVal int64, lowerIsBetter bool) string {
+	pct := pctChange(float64(oldVal), float64(newVal))
+
+	if oldVal == newVal {
+		return fmt.Sprintf("%d → %d (%+.1f%%)", oldVal, newVal, pct)
+	}
+
+	arrow := "↑"
+	improved := !lowerIsBetter
+	if newVal < oldVal {
+		arrow = "↓"
+		improved = lowerIsBetter
+	}
+	color := colorRed
+	if improved {
+		color = colorGreen
+	}
+
+	return fmt.Sprintf("%d → %s%d %s (%+.1f%%)%s", oldVal, color, newVal, arrow, pct, colorReset)
 }
 
 func dirColor(d comparator.Direction) string {
@@ -327,6 +455,24 @@ func pctChange(old, new float64) float64 {
 		return 100
 	}
 	return ((new - old) / old) * 100
+}
+
+// formatDurationDelta renders a millisecond delta as a signed hh:mm:ss.ms
+// duration, e.g. "-00:00:00.049".
+func formatDurationDelta(deltaMs float64) string {
+	sign := "+"
+	if deltaMs < 0 {
+		sign = "-"
+		deltaMs = -deltaMs
+	}
+
+	totalMs := int64(math.Round(deltaMs))
+	hh := totalMs / 3_600_000
+	mm := (totalMs % 3_600_000) / 60_000
+	ss := (totalMs % 60_000) / 1_000
+	ms := totalMs % 1_000
+
+	return fmt.Sprintf("%s%02d:%02d:%02d.%03d", sign, hh, mm, ss, ms)
 }
 
 func (tw *textWriter) renderIndexNameChange(indent string, d comparator.NodeDelta) {

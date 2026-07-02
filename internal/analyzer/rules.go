@@ -255,8 +255,8 @@ func checkBitmapHeapRecheck(node, parent *plan.PlanNode, childIdx int, ctx *Plan
 		Severity: severity,
 		NodeType: node.NodeType,
 		Relation: node.RelationName,
-		Description: fmt.Sprintf("Bitmap Heap Scan on %s has %.1f%% lossy pages (%d of %d blocks) — bitmap exceeded work_mem",
-			node.RelationName, lossyPct, node.LossyHeapBlocks, totalBlocks),
+		Description: fmt.Sprintf("Bitmap Heap Scan on %s has %.1f%% lossy pages (%d of %d blocks, %s) — bitmap exceeded work_mem",
+			node.RelationName, lossyPct, node.LossyHeapBlocks, totalBlocks, plan.FormatBytes(totalBlocks*ctx.BlockSizeOrDefault())),
 		Suggestion: "Increase work_mem to keep bitmap exact, or use a more selective index to reduce bitmap size",
 	}}
 }
@@ -336,12 +336,11 @@ func checkTempBlocks(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext
 	if total == 0 {
 		return nil
 	}
-	sizeMB := float64(total*8) / 1024
 	return []Finding{{
 		Severity:    Warning,
 		NodeType:    node.NodeType,
 		Relation:    node.RelationName,
-		Description: fmt.Sprintf("Temp I/O: %d blocks (%.1f MB) on %s", total, sizeMB, nodeLabel(node)),
+		Description: fmt.Sprintf("Temp I/O: %d blocks (%s) on %s", total, plan.FormatBytes(total*ctx.BlockSizeOrDefault()), nodeLabel(node)),
 		Suggestion:  "Increase work_mem or restructure query to reduce intermediate result size",
 	}}
 }
@@ -432,9 +431,9 @@ func checkIndexScanLowSelectivity(node, parent *plan.PlanNode, childIdx int, ctx
 		Severity: Info,
 		NodeType: node.NodeType,
 		Relation: node.RelationName,
-		Description: fmt.Sprintf("%s on %s using %s returned %.0f rows reading %d blocks (%d%% from disk)",
+		Description: fmt.Sprintf("%s on %s using %s returned %.0f rows reading %d blocks (%s, %d%% from disk)",
 			node.NodeType, node.RelationName, node.IndexName,
-			node.ActualRows, totalBlocks, int(readPct)),
+			node.ActualRows, totalBlocks, plan.FormatBytes(totalBlocks*ctx.BlockSizeOrDefault()), int(readPct)),
 		Suggestion: "Index has low selectivity for this query; a Seq Scan may be cheaper, or the query may benefit from a more selective condition",
 	}}
 }
@@ -564,11 +563,13 @@ func ConsolidateEstimateMismatches(root *plan.PlanNode, ctx *PlanContext) []Find
 		}
 
 		findings = append(findings, Finding{
-			Severity:    Info,
-			NodeType:    "CTE",
-			Relation:    cte.Name,
-			Description: desc,
-			Suggestion:  suggestion,
+			Severity:      Info,
+			NodeType:      "CTE",
+			Relation:      cte.Name,
+			Description:   desc,
+			Suggestion:    suggestion,
+			ActualRows:    cte.ActualRows,
+			HasActualRows: true,
 		})
 	}
 

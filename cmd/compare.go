@@ -45,6 +45,7 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 		profileName, _ := cmd.Flags().GetString("profile")
 		format, _ := cmd.Flags().GetString("format")
 		threshold, _ := cmd.Flags().GetFloat64("threshold")
+		blockSize, _ := cmd.Flags().GetInt64("block-size")
 
 		if format != "text" && format != "json" {
 			return fmt.Errorf("invalid output format %q: must be \"text\" or \"json\"", format)
@@ -56,6 +57,10 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 
 		if threshold > 100 {
 			return fmt.Errorf("threshold must be <= 100%%, got %.2f", threshold)
+		}
+
+		if blockSize <= 0 {
+			return fmt.Errorf("block-size must be positive, got %d", blockSize)
 		}
 
 		connStr, err := profile.ResolveConnStr(db, profileName)
@@ -90,7 +95,7 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, VERBOS
 		case "json":
 			return output.RenderJSON(os.Stdout, result)
 		case "text":
-			return output.RenderComparisonText(os.Stdout, result)
+			return output.RenderComparisonText(os.Stdout, result, blockSize)
 		}
 
 		return nil
@@ -103,5 +108,6 @@ func init() {
 	compareCmd.Flags().StringP("profile", "p", "", "Use named profile from config")
 	compareCmd.Flags().StringP("format", "f", "text", "Output format: text, json")
 	compareCmd.Flags().Float64P("threshold", "t", 5.0, "Percent change threshold for significance (default 5%)")
+	compareCmd.Flags().Int64("block-size", 8192, "PostgreSQL page size in bytes, used to show block counts as human-readable sizes")
 	compareCmd.MarkFlagsMutuallyExclusive("db", "profile")
 }

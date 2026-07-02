@@ -188,6 +188,77 @@ func TestDiffNodes_BufferDirection(t *testing.T) {
 	}
 }
 
+func TestDiffNodes_BufferBreakdown(t *testing.T) {
+	c := defaultComparator()
+	old := plan.PlanNode{
+		NodeType:           "Seq Scan",
+		TotalCost:          20.0,
+		SharedHitBlocks:    10,
+		SharedReadBlocks:   1000,
+		LocalReadBlocks:    50,
+		LocalWrittenBlocks: 5,
+		TempReadBlocks:     20,
+		TempWrittenBlocks:  30,
+		ActualLoops:        1,
+	}
+	new := plan.PlanNode{
+		NodeType:           "Seq Scan",
+		TotalCost:          20.0,
+		SharedHitBlocks:    500,
+		SharedReadBlocks:   100,
+		LocalReadBlocks:    0,
+		LocalWrittenBlocks: 0,
+		TempReadBlocks:     0,
+		TempWrittenBlocks:  0,
+		ActualLoops:        1,
+	}
+
+	delta := c.diffNodes(&old, &new)
+
+	if delta.OldBuffers.Shared.Read != 1000 || delta.NewBuffers.Shared.Read != 100 {
+		t.Errorf("Shared.Read = %d → %d, want 1000 → 100", delta.OldBuffers.Shared.Read, delta.NewBuffers.Shared.Read)
+	}
+	if delta.OldBuffers.Local.Read != 50 || delta.NewBuffers.Local.Read != 0 {
+		t.Errorf("Local.Read = %d → %d, want 50 → 0", delta.OldBuffers.Local.Read, delta.NewBuffers.Local.Read)
+	}
+	if delta.OldBuffers.Temp.Written != 30 || delta.NewBuffers.Temp.Written != 0 {
+		t.Errorf("Temp.Written = %d → %d, want 30 → 0", delta.OldBuffers.Temp.Written, delta.NewBuffers.Temp.Written)
+	}
+	if delta.OldBufferReads != 1070 { // shared 1000 + local 50 + temp 20
+		t.Errorf("OldBufferReads = %d, want 1070", delta.OldBufferReads)
+	}
+	if delta.NewBufferReads != 100 {
+		t.Errorf("NewBufferReads = %d, want 100", delta.NewBufferReads)
+	}
+}
+
+func TestDiffNodes_SortSpaceUsedChange(t *testing.T) {
+	c := defaultComparator()
+	old := plan.PlanNode{
+		NodeType:      "Sort",
+		TotalCost:     20.0,
+		SortSpaceUsed: 4096,
+		SortSpaceType: "Disk",
+		ActualLoops:   1,
+	}
+	new := plan.PlanNode{
+		NodeType:      "Sort",
+		TotalCost:     20.0,
+		SortSpaceUsed: 64,
+		SortSpaceType: "Memory",
+		ActualLoops:   1,
+	}
+
+	delta := c.diffNodes(&old, &new)
+
+	if delta.OldSortSpaceUsed != 4096 || delta.NewSortSpaceUsed != 64 {
+		t.Errorf("SortSpaceUsed = %d → %d, want 4096 → 64", delta.OldSortSpaceUsed, delta.NewSortSpaceUsed)
+	}
+	if delta.ChangeType != Modified {
+		t.Errorf("ChangeType = %v, want Modified (sort space change should be significant)", delta.ChangeType)
+	}
+}
+
 func TestDiffChildren_MatchedChildren(t *testing.T) {
 	c := defaultComparator()
 	oldKids := []plan.PlanNode{
@@ -286,6 +357,72 @@ func TestCompare_BasicComparison(t *testing.T) {
 	}
 	if s.NodesTypeChanged != 1 {
 		t.Errorf("NodesTypeChanged = %d, want 1", s.NodesTypeChanged)
+	}
+}
+
+// PostgreSQL's per-node Buffers counters are cumulative (inclusive of
+// children), so the plan-wide Summary must read them from the root node
+// only. SortSpaceUsed is the opposite - independent per-operation memory -
+// so it must sum across every sort/hash node in the tree.
+func TestCompare_SummaryBuffersAndSortVolume(t *testing.T) {
+	c := defaultComparator()
+	old := plan.ExplainOutput{
+		Plan: plan.PlanNode{
+			NodeType:          "Sort",
+			SharedReadBlocks:  100, // already includes the child's contribution, per PG semantics
+			LocalReadBlocks:   10,
+			TempWrittenBlocks: 5,
+			SortSpaceUsed:     2048,
+			SortSpaceType:     "Disk",
+			ActualLoops:       1,
+			Plans: []plan.PlanNode{
+				{
+					NodeType:      "Seq Scan",
+					SortSpaceUsed: 0,
+					ActualLoops:   1,
+				},
+			},
+		},
+	}
+	new := plan.ExplainOutput{
+		Plan: plan.PlanNode{
+			NodeType:        "Sort",
+			SharedHitBlocks: 200,
+			SortSpaceUsed:   64,
+			SortSpaceType:   "Memory",
+			ActualLoops:     1,
+			Plans: []plan.PlanNode{
+				{
+					NodeType:    "Index Scan",
+					ActualLoops: 1,
+				},
+			},
+		},
+	}
+
+	result := c.Compare(old, new)
+	s := result.Summary
+
+	if s.OldBuffers.Shared.Read != 100 {
+		t.Errorf("OldBuffers.Shared.Read = %d, want 100 (root's own counter)", s.OldBuffers.Shared.Read)
+	}
+	if s.OldBuffers.Local.Read != 10 {
+		t.Errorf("OldBuffers.Local.Read = %d, want 10", s.OldBuffers.Local.Read)
+	}
+	if s.OldBuffers.Temp.Written != 5 {
+		t.Errorf("OldBuffers.Temp.Written = %d, want 5", s.OldBuffers.Temp.Written)
+	}
+	if s.NewBuffers.Shared.Hit != 200 {
+		t.Errorf("NewBuffers.Shared.Hit = %d, want 200", s.NewBuffers.Shared.Hit)
+	}
+	if s.OldSortSpaceUsed != 2048 || s.NewSortSpaceUsed != 64 {
+		t.Errorf("SortSpaceUsed = %d → %d, want 2048 → 64", s.OldSortSpaceUsed, s.NewSortSpaceUsed)
+	}
+	if s.OldTotalReads != 110 { // shared 100 + local 10, root's own counters
+		t.Errorf("OldTotalReads = %d, want 110", s.OldTotalReads)
+	}
+	if s.NewTotalHits != 200 {
+		t.Errorf("NewTotalHits = %d, want 200", s.NewTotalHits)
 	}
 }
 

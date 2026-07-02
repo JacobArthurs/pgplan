@@ -215,6 +215,47 @@ func TestParseJSONPlan_HashJoinWithBuffers(t *testing.T) {
 	}
 }
 
+func TestParseJSONPlan_LocalBlocks(t *testing.T) {
+	input := `[{
+		"Plan": {
+			"Node Type": "CTE Scan",
+			"Startup Cost": 0.0,
+			"Total Cost": 10.0,
+			"Plan Rows": 100,
+			"Plan Width": 8,
+			"Actual Startup Time": 0.1,
+			"Actual Total Time": 0.2,
+			"Actual Rows": 100,
+			"Actual Loops": 1,
+			"Local Hit Blocks": 3,
+			"Local Read Blocks": 4,
+			"Local Dirtied Blocks": 1,
+			"Local Written Blocks": 2
+		},
+		"Planning Time": 0.1,
+		"Execution Time": 0.5
+	}]`
+
+	plans, err := ParseJSONPlan([]byte(input))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	node := plans[0].Plan
+	if node.LocalHitBlocks != 3 {
+		t.Errorf("LocalHitBlocks = %d, want 3", node.LocalHitBlocks)
+	}
+	if node.LocalReadBlocks != 4 {
+		t.Errorf("LocalReadBlocks = %d, want 4", node.LocalReadBlocks)
+	}
+	if node.LocalDirtiedBlocks != 1 {
+		t.Errorf("LocalDirtiedBlocks = %d, want 1", node.LocalDirtiedBlocks)
+	}
+	if node.LocalWrittenBlocks != 2 {
+		t.Errorf("LocalWrittenBlocks = %d, want 2", node.LocalWrittenBlocks)
+	}
+}
+
 func TestParseJSONPlan_IndexScanFields(t *testing.T) {
 	input := `[{
 		"Plan": {
