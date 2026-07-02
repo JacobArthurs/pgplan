@@ -331,17 +331,42 @@ func checkHashSpill(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext)
 	}}
 }
 
+// checkTempBlocks flags temp file I/O caused by this node specifically.
+// PostgreSQL's Temp Read/Written Blocks counters are cumulative - like
+// Actual Total Time, a node's reported count already includes everything
+// its descendants did - so a wrapping node (e.g. Sort -> Subquery Scan ->
+// Aggregate -> Limit) would otherwise report the exact same total as the
+// descendant that actually spilled, once per ancestor level. Subtracting
+// the immediate children's counts isolates this node's own contribution.
 func checkTempBlocks(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
-	total := node.TempReadBlocks + node.TempWrittenBlocks
+	selfRead := node.TempReadBlocks
+	selfWritten := node.TempWrittenBlocks
+	for i := range node.Plans {
+		selfRead -= node.Plans[i].TempReadBlocks
+		selfWritten -= node.Plans[i].TempWrittenBlocks
+	}
+	if selfRead < 0 {
+		selfRead = 0
+	}
+	if selfWritten < 0 {
+		selfWritten = 0
+	}
+
+	total := selfRead + selfWritten
 	if total == 0 {
 		return nil
 	}
+
+	blockSize := ctx.BlockSizeOrDefault()
 	return []Finding{{
-		Severity:    Warning,
-		NodeType:    node.NodeType,
-		Relation:    node.RelationName,
-		Description: fmt.Sprintf("Temp I/O: %d blocks (%s) on %s", total, plan.FormatBytes(total*ctx.BlockSizeOrDefault()), nodeLabel(node)),
-		Suggestion:  "Increase work_mem or restructure query to reduce intermediate result size",
+		Severity: Warning,
+		NodeType: node.NodeType,
+		Relation: node.RelationName,
+		Description: fmt.Sprintf("Temp I/O: read %d blocks (%s), written %d blocks (%s) on %s",
+			selfRead, plan.FormatBytes(selfRead*blockSize),
+			selfWritten, plan.FormatBytes(selfWritten*blockSize),
+			nodeLabel(node)),
+		Suggestion: "Increase work_mem or restructure query to reduce intermediate result size",
 	}}
 }
 

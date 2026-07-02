@@ -82,11 +82,11 @@ func TestAnalyze_BlockSizeAffectsFindingByteSizes(t *testing.T) {
 	d8k := find(default8k.Findings)
 	d4k := find(custom4k.Findings)
 
-	if !strings.Contains(d8k.Description, "1.6 MB") {
-		t.Errorf("default block size Description = %q, want it to contain 1.6 MB (200 blocks * 8192 bytes)", d8k.Description)
+	if !strings.Contains(d8k.Description, "800.0 kB") {
+		t.Errorf("default block size Description = %q, want it to contain 800.0 kB (100 blocks * 8192 bytes)", d8k.Description)
 	}
-	if !strings.Contains(d4k.Description, "800.0 kB") {
-		t.Errorf("4096 block size Description = %q, want it to contain 800.0 kB (200 blocks * 4096 bytes)", d4k.Description)
+	if !strings.Contains(d4k.Description, "400.0 kB") {
+		t.Errorf("4096 block size Description = %q, want it to contain 400.0 kB (100 blocks * 4096 bytes)", d4k.Description)
 	}
 }
 

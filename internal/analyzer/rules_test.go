@@ -427,6 +427,50 @@ func TestTempBlocks_NoTempIO(t *testing.T) {
 	requireNoFindings(t, findings)
 }
 
+// PostgreSQL's Temp Read/Written Blocks are cumulative (inclusive of
+// descendants), so a pass-through wrapper node reports the exact same
+// total as the child that actually spilled. checkTempBlocks must subtract
+// the child's contribution and report only the parent's own (zero, here),
+// instead of re-flagging the same spill at every ancestor level.
+func TestTempBlocks_PassThroughParentReportsNoSelfContribution(t *testing.T) {
+	parent := &plan.PlanNode{
+		NodeType:          "Limit",
+		TempReadBlocks:    500,
+		TempWrittenBlocks: 500,
+		Plans: []plan.PlanNode{
+			{
+				NodeType:          "Sort",
+				TempReadBlocks:    500,
+				TempWrittenBlocks: 500,
+			},
+		},
+	}
+
+	findings := checkTempBlocks(parent, nil, -1, emptyCtx())
+	requireNoFindings(t, findings)
+}
+
+func TestTempBlocks_ParentWithOwnContributionReportsOnlySelf(t *testing.T) {
+	parent := &plan.PlanNode{
+		NodeType:          "Aggregate",
+		TempReadBlocks:    900,
+		TempWrittenBlocks: 900,
+		Plans: []plan.PlanNode{
+			{
+				NodeType:          "Hash Join",
+				TempReadBlocks:    400,
+				TempWrittenBlocks: 400,
+			},
+		},
+	}
+
+	findings := checkTempBlocks(parent, nil, -1, emptyCtx())
+	requireFindings(t, findings, 1)
+	if !strings.Contains(findings[0].Description, "read 500 blocks") || !strings.Contains(findings[0].Description, "written 500 blocks") {
+		t.Errorf("Description = %q, want self contribution of 500 blocks (900 - 400 child), not the cumulative 900", findings[0].Description)
+	}
+}
+
 func TestWorkerMismatch_FewerLaunched(t *testing.T) {
 	node := &plan.PlanNode{
 		NodeType:        "Gather",
