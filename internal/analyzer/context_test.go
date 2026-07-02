@@ -34,7 +34,7 @@ func TestBuildContext_DetectsCTEs(t *testing.T) {
 		t.Errorf("EstimatedRows = %d, want 250", cte.EstimatedRows)
 	}
 	if cte.ActualRows != 37 {
-		t.Errorf("ActualRows = %d, want 37", cte.ActualRows)
+		t.Errorf("ActualRows = %v, want 37", cte.ActualRows)
 	}
 }
 

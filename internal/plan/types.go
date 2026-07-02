@@ -14,8 +14,10 @@ type PlanNode struct {
 	PlanWidth         int     `json:"Plan Width"`
 	ActualStartupTime float64 `json:"Actual Startup Time,omitempty"`
 	ActualTotalTime   float64 `json:"Actual Total Time,omitempty"`
-	ActualRows        int64   `json:"Actual Rows,omitempty"`
-	ActualLoops       int64   `json:"Actual Loops,omitempty"`
+	// ActualRows is PostgreSQL's total-rows-divided-by-loops average, so it
+	// can be fractional (e.g. 3079.00) when Actual Loops > 1.
+	ActualRows  float64 `json:"Actual Rows,omitempty"`
+	ActualLoops int64   `json:"Actual Loops,omitempty"`
 
 	// Relation/index info
 	Schema        string `json:"Schema,omitempty"`
@@ -25,19 +27,19 @@ type PlanNode struct {
 	ScanDirection string `json:"Scan Direction,omitempty"`
 
 	// Conditions
-	IndexCond           string `json:"Index Cond,omitempty"`
-	Filter              string `json:"Filter,omitempty"`
-	RowsRemovedByFilter int64  `json:"Rows Removed by Filter,omitempty"`
-	ExactHeapBlocks     int64  `json:"Exact Heap Blocks,omitempty"`
-	LossyHeapBlocks     int64  `json:"Lossy Heap Blocks,omitempty"`
+	IndexCond           string  `json:"Index Cond,omitempty"`
+	Filter              string  `json:"Filter,omitempty"`
+	RowsRemovedByFilter float64 `json:"Rows Removed by Filter,omitempty"`
+	ExactHeapBlocks     int64   `json:"Exact Heap Blocks,omitempty"`
+	LossyHeapBlocks     int64   `json:"Lossy Heap Blocks,omitempty"`
 
 	// Join info
-	JoinType                string `json:"Join Type,omitempty"`
-	JoinFilter              string `json:"Join Filter,omitempty"`
-	HashCond                string `json:"Hash Cond,omitempty"`
-	MergeCond               string `json:"Merge Cond,omitempty"`
-	InnerUnique             bool   `json:"Inner Unique,omitempty"`
-	RowsRemovedByJoinFilter int64  `json:"Rows Removed by Join Filter,omitempty"`
+	JoinType                string  `json:"Join Type,omitempty"`
+	JoinFilter              string  `json:"Join Filter,omitempty"`
+	HashCond                string  `json:"Hash Cond,omitempty"`
+	MergeCond               string  `json:"Merge Cond,omitempty"`
+	InnerUnique             bool    `json:"Inner Unique,omitempty"`
+	RowsRemovedByJoinFilter float64 `json:"Rows Removed by Join Filter,omitempty"`
 
 	// Sort
 	SortKey       []string `json:"Sort Key,omitempty"`
