@@ -77,8 +77,8 @@ type NodeDelta struct {
 	NewLoops int64
 
 	// Filter effectiveness
-	OldRowsRemovedByFilter float64
-	NewRowsRemovedByFilter float64
+	OldRowsRemovedByFilter int64
+	NewRowsRemovedByFilter int64
 
 	// Parallel
 	OldWorkersLaunched int

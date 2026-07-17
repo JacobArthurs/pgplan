@@ -69,11 +69,11 @@ func checkIndexScanFilterInefficiency(node, parent *plan.PlanNode, childIdx int,
 		return nil
 	}
 
-	total := node.ActualRows + node.RowsRemovedByFilter
+	total := node.ActualRows + float64(node.RowsRemovedByFilter)
 	if total == 0 {
 		return nil
 	}
-	removedPct := float64(node.RowsRemovedByFilter) / float64(total) * 100
+	removedPct := float64(node.RowsRemovedByFilter) / total * 100
 
 	if removedPct < FilterRemovalWarningPct {
 		return nil
@@ -88,7 +88,7 @@ func checkIndexScanFilterInefficiency(node, parent *plan.PlanNode, childIdx int,
 		severity = Critical
 	}
 
-	desc := fmt.Sprintf("%s on %s using %s filters out %.2f%% of rows (%.0f of %.0f)",
+	desc := fmt.Sprintf("%s on %s using %s filters out %.2f%% of rows (%d of %.0f)",
 		node.NodeType, node.RelationName, node.IndexName,
 		removedPct, node.RowsRemovedByFilter, total)
 
@@ -194,8 +194,8 @@ func checkSeqScanStandalone(node, parent *plan.PlanNode, childIdx int, ctx *Plan
 		return nil
 	}
 
-	total := rows + node.RowsRemovedByFilter
-	removedPct := float64(node.RowsRemovedByFilter) / float64(total) * 100
+	total := rows + float64(node.RowsRemovedByFilter)
+	removedPct := float64(node.RowsRemovedByFilter) / total * 100
 
 	if removedPct < FilterRemovalWarningPct {
 		return nil
@@ -210,7 +210,7 @@ func checkSeqScanStandalone(node, parent *plan.PlanNode, childIdx int, ctx *Plan
 		severity = Critical
 	}
 
-	desc := fmt.Sprintf("Seq Scan on %s filters out %.2f%% of rows (%.0f of %.0f)",
+	desc := fmt.Sprintf("Seq Scan on %s filters out %.2f%% of rows (%d of %.0f)",
 		node.RelationName, removedPct, node.RowsRemovedByFilter, total)
 
 	suggestion := fmt.Sprintf("Add an index on %s covering the filter condition", node.RelationName)
@@ -371,7 +371,7 @@ func checkLargeJoinFilterRemoval(node, parent *plan.PlanNode, childIdx int, ctx 
 		Severity:    severity,
 		NodeType:    node.NodeType,
 		Relation:    node.RelationName,
-		Description: fmt.Sprintf("Join filter removed %.0f rows on %s", node.RowsRemovedByJoinFilter, nodeLabel(node)),
+		Description: fmt.Sprintf("Join filter removed %d rows on %s", node.RowsRemovedByJoinFilter, nodeLabel(node)),
 		Suggestion:  "Move filter condition into the join clause or add an index to reduce join input",
 	}}
 }

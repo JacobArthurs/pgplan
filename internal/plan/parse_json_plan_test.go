@@ -64,7 +64,7 @@ func TestParseJSONPlan_ValidPlan(t *testing.T) {
 		{"ActualRows", node.ActualRows, float64(1000)},
 		{"ActualLoops", node.ActualLoops, int64(1)},
 		{"Filter", node.Filter, "(active = true)"},
-		{"RowsRemovedByFilter", node.RowsRemovedByFilter, float64(500)},
+		{"RowsRemovedByFilter", node.RowsRemovedByFilter, int64(500)},
 		{"SharedHitBlocks", node.SharedHitBlocks, int64(5)},
 		{"SharedReadBlocks", node.SharedReadBlocks, int64(10)},
 	}
@@ -257,12 +257,16 @@ func TestParseJSONPlan_IndexScanFields(t *testing.T) {
 }
 
 func TestParseJSONPlan_FractionalActualRows(t *testing.T) {
-	// PostgreSQL averages "actual" row/filter counts across loop
-	// iterations (total / nloops), which can produce a fractional
-	// number even though the underlying value is a row count. Mixes
-	// plain-integer and fractional JSON numbers across sibling nodes
-	// (and Plan Rows/Actual Loops, which stay integer-only) to confirm
-	// both representations unmarshal correctly side by side.
+	// PostgreSQL computes "Actual Rows" as total rows / nloops and always
+	// prints it with 2 decimal digits, so it can be fractional (e.g.
+	// 3079.00) when Actual Loops > 1. "Rows Removed by Filter"/"Rows
+	// Removed by Join Filter" go through the same per-loop division
+	// (show_instrumentation_count in explain.c) but are printed with 0
+	// decimal digits, so PostgreSQL never emits a fractional value for
+	// them — they stay plain integers here. Mixes plain-integer and
+	// fractional JSON numbers across sibling nodes (and Plan Rows/Actual
+	// Loops, which stay integer-only) to confirm both representations
+	// unmarshal correctly side by side.
 	input := `[{
 		"Plan": {
 			"Node Type": "Nested Loop",
@@ -275,9 +279,9 @@ func TestParseJSONPlan_FractionalActualRows(t *testing.T) {
 			"Actual Rows": 3079.00,
 			"Actual Loops": 4,
 			"Filter": "(active = true)",
-			"Rows Removed by Filter": 12.25,
+			"Rows Removed by Filter": 12,
 			"Join Filter": "(u.id = o.user_id)",
-			"Rows Removed by Join Filter": 5.5,
+			"Rows Removed by Join Filter": 5,
 			"Plans": [
 				{
 					"Node Type": "Seq Scan",
@@ -307,11 +311,11 @@ func TestParseJSONPlan_FractionalActualRows(t *testing.T) {
 	if node.ActualRows != 3079.00 {
 		t.Errorf("ActualRows = %v, want 3079.00", node.ActualRows)
 	}
-	if node.RowsRemovedByFilter != 12.25 {
-		t.Errorf("RowsRemovedByFilter = %v, want 12.25", node.RowsRemovedByFilter)
+	if node.RowsRemovedByFilter != 12 {
+		t.Errorf("RowsRemovedByFilter = %v, want 12", node.RowsRemovedByFilter)
 	}
-	if node.RowsRemovedByJoinFilter != 5.5 {
-		t.Errorf("RowsRemovedByJoinFilter = %v, want 5.5", node.RowsRemovedByJoinFilter)
+	if node.RowsRemovedByJoinFilter != 5 {
+		t.Errorf("RowsRemovedByJoinFilter = %v, want 5", node.RowsRemovedByJoinFilter)
 	}
 	if node.PlanRows != 1 {
 		t.Errorf("PlanRows = %v, want 1", node.PlanRows)

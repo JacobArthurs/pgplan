@@ -185,7 +185,7 @@ func (tw *textWriter) renderModifiedNode(indent string, d comparator.NodeDelta) 
 			pctChange(float64(d.OldLoops), float64(d.NewLoops)))
 	}
 	if d.OldRowsRemovedByFilter != d.NewRowsRemovedByFilter {
-		tw.renderMetricLineCount(indent, "rows removed by filter",
+		tw.renderMetricLineInt(indent, "rows removed by filter",
 			d.OldRowsRemovedByFilter, d.NewRowsRemovedByFilter,
 			pctChange(float64(d.OldRowsRemovedByFilter), float64(d.NewRowsRemovedByFilter)))
 	}
