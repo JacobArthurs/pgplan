@@ -594,7 +594,7 @@ func ConsolidateEstimateMismatches(root *plan.PlanNode, ctx *PlanContext) []Find
 			Description:   desc,
 			Suggestion:    suggestion,
 			ActualRows:    cte.ActualRows,
-			HasActualRows: true,
+			HasActualRows: ctx.Analyzed,
 		})
 	}
 

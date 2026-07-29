@@ -15,6 +15,12 @@ type PlanContext struct {
 	// counts as human-readable sizes in Finding descriptions. Zero means
 	// "use plan.DefaultBlockSize" - see BlockSizeOrDefault.
 	BlockSize int64
+
+	// Analyzed is true when the plan was produced with EXPLAIN ANALYZE, as
+	// determined once at the query level (see Analyze) - not per node, since
+	// a node's own Actual Loops is legitimately 0 for a skipped CASE branch,
+	// excluded partition, etc. even when the query was analyzed.
+	Analyzed bool
 }
 
 // BlockSizeOrDefault returns ctx.BlockSize, falling back to

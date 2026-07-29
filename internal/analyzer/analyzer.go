@@ -11,10 +11,11 @@ import (
 // descriptions as human-readable sizes; omit it (or pass <= 0) to use
 // plan.DefaultBlockSize.
 func Analyze(output plan.ExplainOutput, blockSize ...int64) AnalysisResult {
-	// ActualLoops is only present in the JSON when ANALYZE was used, and is
-	// always >= 1 for the root node in that case - unlike ActualRows, it
-	// can't be confused with a legitimate zero-row result.
-	hasActualRows := output.Plan.ActualLoops > 0
+	// Planning/Execution Time are only present in the JSON when ANALYZE was
+	// used. Determined once at the query level rather than per node: a
+	// node's own Actual Loops is legitimately 0 for a skipped CASE branch,
+	// excluded partition, etc. even when the query was analyzed.
+	analyzed := output.PlanningTime > 0 || output.ExecutionTime > 0
 
 	result := AnalysisResult{
 		TotalCost:     output.Plan.TotalCost,
@@ -22,13 +23,14 @@ func Analyze(output plan.ExplainOutput, blockSize ...int64) AnalysisResult {
 		PlanningTime:  output.PlanningTime,
 		Buffers:       plan.AggregateBuffers(&output.Plan),
 		SortSpaceUsed: plan.AggregateSortSpaceUsed(&output.Plan),
-		HasActualRows: hasActualRows,
+		HasActualRows: analyzed,
 	}
-	if hasActualRows {
+	if analyzed {
 		result.ActualRows = output.Plan.ActualRows
 	}
 
 	ctx := BuildContext(&output.Plan)
+	ctx.Analyzed = analyzed
 	if len(blockSize) > 0 {
 		ctx.BlockSize = blockSize[0]
 	}
@@ -45,13 +47,11 @@ func Analyze(output plan.ExplainOutput, blockSize ...int64) AnalysisResult {
 }
 
 func walkTree(node, parent *plan.PlanNode, childIdx int, rules []Rule, ctx *PlanContext, result *AnalysisResult) {
-	hasActualRows := node.ActualLoops > 0
-
 	for _, rule := range rules {
 		findings := rule(node, parent, childIdx, ctx)
 		for i := range findings {
-			findings[i].HasActualRows = hasActualRows
-			if hasActualRows {
+			findings[i].HasActualRows = ctx.Analyzed
+			if ctx.Analyzed {
 				findings[i].ActualRows = node.ActualRows
 			}
 		}

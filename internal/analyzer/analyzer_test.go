@@ -117,7 +117,7 @@ func TestAnalyze_ActualRows_PresentWhenAnalyzed(t *testing.T) {
 	result := Analyze(output)
 
 	if !result.HasActualRows {
-		t.Fatal("HasActualRows = false, want true (ActualLoops > 0)")
+		t.Fatal("HasActualRows = false, want true (query-level Planning/Execution Time present)")
 	}
 	if result.ActualRows != 1234 {
 		t.Errorf("ActualRows = %v, want 1234 (root node's ActualRows)", result.ActualRows)
@@ -134,7 +134,8 @@ func TestAnalyze_ActualRows_PresentWhenAnalyzed(t *testing.T) {
 }
 
 func TestAnalyze_ActualRows_AbsentWithoutAnalyze(t *testing.T) {
-	// A plain EXPLAIN (no ANALYZE) never populates Actual Loops/Rows.
+	// A plain EXPLAIN (no ANALYZE) never populates Actual Loops/Rows, nor
+	// the top-level Planning/Execution Time.
 	output := plan.ExplainOutput{
 		Plan: plan.PlanNode{
 			NodeType:  "Seq Scan",
@@ -150,5 +151,34 @@ func TestAnalyze_ActualRows_AbsentWithoutAnalyze(t *testing.T) {
 	}
 	if result.ActualRows != 0 {
 		t.Errorf("ActualRows = %v, want 0", result.ActualRows)
+	}
+}
+
+// A node with ActualLoops == 0 (a skipped CASE branch, an excluded
+// partition, etc.) does not mean the query wasn't analyzed - "analyzed" is
+// determined once at the query level (ctx.Analyzed), not by looking at that
+// node's own Actual Loops.
+func TestWalkTree_SkippedNodeStillReportedAsAnalyzed(t *testing.T) {
+	node := plan.PlanNode{
+		// Partition pruned/excluded at execution time: PostgreSQL reports
+		// this with Actual Loops 0, even though the query was analyzed.
+		NodeType:      "Seq Scan",
+		RelationName:  "partition_2025",
+		ActualRows:    0,
+		ActualLoops:   0,
+		SortSpaceType: "Disk", // forces checkSortSpill to fire regardless of row counts
+	}
+	ctx := &PlanContext{Analyzed: true}
+
+	var result AnalysisResult
+	walkTree(&node, nil, -1, []Rule{checkSortSpill}, ctx, &result)
+
+	if len(result.Findings) == 0 {
+		t.Fatal("expected checkSortSpill to fire")
+	}
+	for _, f := range result.Findings {
+		if !f.HasActualRows {
+			t.Errorf("finding %q on skipped node (ActualLoops=0): HasActualRows = false, want true - the query was analyzed even though this node never ran", f.Description)
+		}
 	}
 }
