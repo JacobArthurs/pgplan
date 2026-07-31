@@ -69,11 +69,11 @@ func checkIndexScanFilterInefficiency(node, parent *plan.PlanNode, childIdx int,
 		return nil
 	}
 
-	total := node.ActualRows + node.RowsRemovedByFilter
+	total := node.ActualRows + float64(node.RowsRemovedByFilter)
 	if total == 0 {
 		return nil
 	}
-	removedPct := float64(node.RowsRemovedByFilter) / float64(total) * 100
+	removedPct := float64(node.RowsRemovedByFilter) / total * 100
 
 	if removedPct < FilterRemovalWarningPct {
 		return nil
@@ -88,7 +88,7 @@ func checkIndexScanFilterInefficiency(node, parent *plan.PlanNode, childIdx int,
 		severity = Critical
 	}
 
-	desc := fmt.Sprintf("%s on %s using %s filters out %.2f%% of rows (%d of %d)",
+	desc := fmt.Sprintf("%s on %s using %s filters out %.2f%% of rows (%d of %.0f)",
 		node.NodeType, node.RelationName, node.IndexName,
 		removedPct, node.RowsRemovedByFilter, total)
 
@@ -127,7 +127,7 @@ func checkSeqScanInJoin(node, parent *plan.PlanNode, childIdx int, ctx *PlanCont
 
 	rows := node.ActualRows
 	if rows == 0 {
-		rows = node.PlanRows
+		rows = float64(node.PlanRows)
 	}
 	if rows < MinRowsForSeqScanWarning {
 		return nil
@@ -143,7 +143,7 @@ func checkSeqScanInJoin(node, parent *plan.PlanNode, childIdx int, ctx *PlanCont
 		severity = Critical
 	}
 
-	desc := fmt.Sprintf("Seq Scan on %s scans %d rows to join against %d rows",
+	desc := fmt.Sprintf("Seq Scan on %s scans %.0f rows to join against %.0f rows",
 		node.RelationName, rows, siblingRows)
 
 	if siblingSource := findSiblingSource(childIdx, parent); siblingSource != "" {
@@ -188,14 +188,14 @@ func checkSeqScanStandalone(node, parent *plan.PlanNode, childIdx int, ctx *Plan
 
 	rows := node.ActualRows
 	if rows == 0 {
-		rows = node.PlanRows
+		rows = float64(node.PlanRows)
 	}
 	if rows < MinRowsForSeqScanWarning {
 		return nil
 	}
 
-	total := rows + node.RowsRemovedByFilter
-	removedPct := float64(node.RowsRemovedByFilter) / float64(total) * 100
+	total := rows + float64(node.RowsRemovedByFilter)
+	removedPct := float64(node.RowsRemovedByFilter) / total * 100
 
 	if removedPct < FilterRemovalWarningPct {
 		return nil
@@ -210,7 +210,7 @@ func checkSeqScanStandalone(node, parent *plan.PlanNode, childIdx int, ctx *Plan
 		severity = Critical
 	}
 
-	desc := fmt.Sprintf("Seq Scan on %s filters out %.2f%% of rows (%d of %d)",
+	desc := fmt.Sprintf("Seq Scan on %s filters out %.2f%% of rows (%d of %.0f)",
 		node.RelationName, removedPct, node.RowsRemovedByFilter, total)
 
 	suggestion := fmt.Sprintf("Add an index on %s covering the filter condition", node.RelationName)
@@ -395,7 +395,7 @@ func checkMaterializeHighLoops(node, parent *plan.PlanNode, childIdx int, ctx *P
 		Severity: severity,
 		NodeType: node.NodeType,
 		Relation: node.RelationName,
-		Description: fmt.Sprintf("Materialize scanned %d times (%.1fms total, %d rows per scan)",
+		Description: fmt.Sprintf("Materialize scanned %d times (%.1fms total, %.0f rows per scan)",
 			node.ActualLoops, totalTime, node.ActualRows),
 		Suggestion: "Planner couldn't find a better strategy; consider restructuring the query to use a Hash Join or CTE",
 	}}
@@ -432,7 +432,7 @@ func checkIndexScanLowSelectivity(node, parent *plan.PlanNode, childIdx int, ctx
 		Severity: Info,
 		NodeType: node.NodeType,
 		Relation: node.RelationName,
-		Description: fmt.Sprintf("%s on %s using %s returned %d rows reading %d blocks (%d%% from disk)",
+		Description: fmt.Sprintf("%s on %s using %s returned %.0f rows reading %d blocks (%d%% from disk)",
 			node.NodeType, node.RelationName, node.IndexName,
 			node.ActualRows, totalBlocks, int(readPct)),
 		Suggestion: "Index has low selectivity for this query; a Seq Scan may be cheaper, or the query may benefit from a more selective condition",
@@ -471,7 +471,7 @@ func checkWideRows(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) 
 
 	rows := node.ActualRows
 	if rows == 0 {
-		rows = node.PlanRows
+		rows = float64(node.PlanRows)
 	}
 	if rows < WideRowMinRows {
 		return nil
@@ -481,7 +481,7 @@ func checkWideRows(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) 
 		Severity:    Info,
 		NodeType:    node.NodeType,
 		Relation:    node.RelationName,
-		Description: fmt.Sprintf("%s produces %d rows at %d bytes wide", nodeLabel(node), rows, node.PlanWidth),
+		Description: fmt.Sprintf("%s produces %.0f rows at %d bytes wide", nodeLabel(node), rows, node.PlanWidth),
 		Suggestion:  "Select only needed columns to reduce memory usage and improve cache efficiency",
 	}}
 }
@@ -548,14 +548,14 @@ func ConsolidateEstimateMismatches(root *plan.PlanNode, ctx *PlanContext) []Find
 		affected = dedup(affected)
 
 		direction := "inflated"
-		if cte.EstimatedRows < cte.ActualRows {
+		if float64(cte.EstimatedRows) < cte.ActualRows {
 			direction = "deflated"
 		}
 
 		var sourceRelations []string
 		collectSourceRelations(cte.Node, &sourceRelations)
 
-		desc := fmt.Sprintf("Row estimates %s downstream of CTE %s (estimated %d, actual %d)",
+		desc := fmt.Sprintf("Row estimates %s downstream of CTE %s (estimated %d, actual %.0f)",
 			direction, cte.Name, cte.EstimatedRows, cte.ActualRows)
 
 		suggestion := fmt.Sprintf("Affects %s estimates", strings.Join(affected, ", "))
@@ -638,12 +638,12 @@ func isJoinNode(node *plan.PlanNode) bool {
 	return false
 }
 
-func findSiblingRows(childIdx int, parent *plan.PlanNode) int64 {
+func findSiblingRows(childIdx int, parent *plan.PlanNode) float64 {
 	for i := range parent.Plans {
 		if i != childIdx {
 			actual := parent.Plans[i].ActualRows
 			if actual == 0 {
-				actual = parent.Plans[i].PlanRows
+				actual = float64(parent.Plans[i].PlanRows)
 			}
 			return actual
 		}

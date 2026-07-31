@@ -16,7 +16,7 @@ type CTEInfo struct {
 	Name          string
 	Node          *plan.PlanNode
 	EstimatedRows int64
-	ActualRows    int64
+	ActualRows    float64
 }
 
 type NodeRef struct {

@@ -66,9 +66,9 @@ type NodeDelta struct {
 	TimePct   float64
 	TimeDir   Direction
 
-	OldRows   int64
-	NewRows   int64
-	RowsDelta int64
+	OldRows   float64
+	NewRows   float64
+	RowsDelta float64
 	RowsPct   float64
 	RowsDir   Direction
 

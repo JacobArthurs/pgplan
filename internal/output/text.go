@@ -162,7 +162,7 @@ func (tw *textWriter) renderTypeChangedNode(indent string, d comparator.NodeDelt
 		tw.renderMetricLine(indent, "time", d.OldTime, d.NewTime, d.TimePct, d.TimeDir, "%.3f ms")
 	}
 	if d.OldRows != d.NewRows {
-		tw.renderMetricLineInt(indent, "rows", d.OldRows, d.NewRows, d.RowsPct)
+		tw.renderMetricLineCount(indent, "rows", d.OldRows, d.NewRows, d.RowsPct)
 	}
 	tw.renderFilterChange(indent, d)
 	tw.renderIndexCondChange(indent, d)
@@ -178,7 +178,7 @@ func (tw *textWriter) renderModifiedNode(indent string, d comparator.NodeDelta) 
 		tw.renderMetricLine(indent, "time", d.OldTime, d.NewTime, d.TimePct, d.TimeDir, "%.3f ms")
 	}
 	if d.OldRows != d.NewRows {
-		tw.renderMetricLineInt(indent, "rows", d.OldRows, d.NewRows, d.RowsPct)
+		tw.renderMetricLineCount(indent, "rows", d.OldRows, d.NewRows, d.RowsPct)
 	}
 	if d.OldLoops != d.NewLoops && (d.OldLoops > 1 || d.NewLoops > 1) {
 		tw.renderMetricLineInt(indent, "loops", d.OldLoops, d.NewLoops,
@@ -211,6 +211,19 @@ func (tw *textWriter) renderMetricLine(indent, label string, oldVal, newVal, pct
 
 func (tw *textWriter) renderMetricLineInt(indent, label string, oldVal, newVal int64, pct float64) {
 	tw.printf("%s  %s: %d → %d (%+.1f%%)\n", indent, label, oldVal, newVal, pct)
+}
+
+// renderMetricLineCount formats a row/count metric that may be fractional
+// (PostgreSQL averages some "actual" counts across loop iterations).
+func (tw *textWriter) renderMetricLineCount(indent, label string, oldVal, newVal, pct float64) {
+	tw.printf("%s  %s: %s → %s (%+.1f%%)\n", indent, label, formatCount(oldVal), formatCount(newVal), pct)
+}
+
+func formatCount(v float64) string {
+	if v == float64(int64(v)) {
+		return fmt.Sprintf("%d", int64(v))
+	}
+	return fmt.Sprintf("%.2f", v)
 }
 
 func (tw *textWriter) renderFilterChange(indent string, d comparator.NodeDelta) {

@@ -14,8 +14,14 @@ type PlanNode struct {
 	PlanWidth         int     `json:"Plan Width"`
 	ActualStartupTime float64 `json:"Actual Startup Time,omitempty"`
 	ActualTotalTime   float64 `json:"Actual Total Time,omitempty"`
-	ActualRows        int64   `json:"Actual Rows,omitempty"`
-	ActualLoops       int64   `json:"Actual Loops,omitempty"`
+	// ActualRows is PostgreSQL's total-rows-divided-by-loops average,
+	// printed with 2 decimal digits, so it can be fractional (e.g.
+	// 3079.00) when Actual Loops > 1. Rows Removed by Filter/Join Filter
+	// go through the same per-loop division but PostgreSQL rounds them
+	// to 0 decimal digits (show_instrumentation_count in explain.c), so
+	// they stay int64.
+	ActualRows  float64 `json:"Actual Rows,omitempty"`
+	ActualLoops int64   `json:"Actual Loops,omitempty"`
 
 	// Relation/index info
 	Schema        string `json:"Schema,omitempty"`
