@@ -253,3 +253,17 @@ func TestExtractLiteralValue_Empty(t *testing.T) {
 		t.Errorf("expected empty, got %q", val)
 	}
 }
+
+func TestBlockSizeOrDefault_Unset(t *testing.T) {
+	ctx := &PlanContext{}
+	if got := ctx.BlockSizeOrDefault(); got != plan.DefaultBlockSize {
+		t.Errorf("BlockSizeOrDefault() = %d, want %d", got, plan.DefaultBlockSize)
+	}
+}
+
+func TestBlockSizeOrDefault_Custom(t *testing.T) {
+	ctx := &PlanContext{BlockSize: 4096}
+	if got := ctx.BlockSizeOrDefault(); got != 4096 {
+		t.Errorf("BlockSizeOrDefault() = %d, want 4096", got)
+	}
+}

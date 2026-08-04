@@ -255,8 +255,8 @@ func checkBitmapHeapRecheck(node, parent *plan.PlanNode, childIdx int, ctx *Plan
 		Severity: severity,
 		NodeType: node.NodeType,
 		Relation: node.RelationName,
-		Description: fmt.Sprintf("Bitmap Heap Scan on %s has %.1f%% lossy pages (%d of %d blocks) — bitmap exceeded work_mem",
-			node.RelationName, lossyPct, node.LossyHeapBlocks, totalBlocks),
+		Description: fmt.Sprintf("Bitmap Heap Scan on %s has %.1f%% lossy pages (%d of %d blocks, %s) — bitmap exceeded work_mem",
+			node.RelationName, lossyPct, node.LossyHeapBlocks, totalBlocks, plan.FormatBytes(totalBlocks*ctx.BlockSizeOrDefault())),
 		Suggestion: "Increase work_mem to keep bitmap exact, or use a more selective index to reduce bitmap size",
 	}}
 }
@@ -331,18 +331,42 @@ func checkHashSpill(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext)
 	}}
 }
 
+// checkTempBlocks flags temp file I/O caused by this node specifically.
+// PostgreSQL's Temp Read/Written Blocks counters are cumulative - like
+// Actual Total Time, a node's reported count already includes everything
+// its descendants did - so a wrapping node (e.g. Sort -> Subquery Scan ->
+// Aggregate -> Limit) would otherwise report the exact same total as the
+// descendant that actually spilled, once per ancestor level. Subtracting
+// the immediate children's counts isolates this node's own contribution.
 func checkTempBlocks(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
-	total := node.TempReadBlocks + node.TempWrittenBlocks
+	selfRead := node.TempReadBlocks
+	selfWritten := node.TempWrittenBlocks
+	for i := range node.Plans {
+		selfRead -= node.Plans[i].TempReadBlocks
+		selfWritten -= node.Plans[i].TempWrittenBlocks
+	}
+	if selfRead < 0 {
+		selfRead = 0
+	}
+	if selfWritten < 0 {
+		selfWritten = 0
+	}
+
+	total := selfRead + selfWritten
 	if total == 0 {
 		return nil
 	}
-	sizeMB := float64(total*8) / 1024
+
+	blockSize := ctx.BlockSizeOrDefault()
 	return []Finding{{
-		Severity:    Warning,
-		NodeType:    node.NodeType,
-		Relation:    node.RelationName,
-		Description: fmt.Sprintf("Temp I/O: %d blocks (%.1f MB) on %s", total, sizeMB, nodeLabel(node)),
-		Suggestion:  "Increase work_mem or restructure query to reduce intermediate result size",
+		Severity: Warning,
+		NodeType: node.NodeType,
+		Relation: node.RelationName,
+		Description: fmt.Sprintf("Temp I/O: read %d blocks (%s), written %d blocks (%s) on %s",
+			selfRead, plan.FormatBytes(selfRead*blockSize),
+			selfWritten, plan.FormatBytes(selfWritten*blockSize),
+			nodeLabel(node)),
+		Suggestion: "Increase work_mem or restructure query to reduce intermediate result size",
 	}}
 }
 
@@ -432,9 +456,9 @@ func checkIndexScanLowSelectivity(node, parent *plan.PlanNode, childIdx int, ctx
 		Severity: Info,
 		NodeType: node.NodeType,
 		Relation: node.RelationName,
-		Description: fmt.Sprintf("%s on %s using %s returned %.0f rows reading %d blocks (%d%% from disk)",
+		Description: fmt.Sprintf("%s on %s using %s returned %.0f rows reading %d blocks (%s, %d%% from disk)",
 			node.NodeType, node.RelationName, node.IndexName,
-			node.ActualRows, totalBlocks, int(readPct)),
+			node.ActualRows, totalBlocks, plan.FormatBytes(totalBlocks*ctx.BlockSizeOrDefault()), int(readPct)),
 		Suggestion: "Index has low selectivity for this query; a Seq Scan may be cheaper, or the query may benefit from a more selective condition",
 	}}
 }
@@ -564,11 +588,13 @@ func ConsolidateEstimateMismatches(root *plan.PlanNode, ctx *PlanContext) []Find
 		}
 
 		findings = append(findings, Finding{
-			Severity:    Info,
-			NodeType:    "CTE",
-			Relation:    cte.Name,
-			Description: desc,
-			Suggestion:  suggestion,
+			Severity:      Info,
+			NodeType:      "CTE",
+			Relation:      cte.Name,
+			Description:   desc,
+			Suggestion:    suggestion,
+			ActualRows:    cte.ActualRows,
+			HasActualRows: ctx.Analyzed,
 		})
 	}
 

@@ -50,14 +50,19 @@ func (c *Comparator) diffNodes(old, new *plan.PlanNode) NodeDelta {
 	delta.OldWorkersPlanned = old.WorkersPlanned
 	delta.NewWorkersPlanned = new.WorkersPlanned
 
-	delta.OldBufferReads = old.SharedReadBlocks + old.TempReadBlocks
-	delta.NewBufferReads = new.SharedReadBlocks + new.TempReadBlocks
-	delta.OldBufferHits = old.SharedHitBlocks
-	delta.NewBufferHits = new.SharedHitBlocks
+	delta.OldBuffers = plan.NodeBufferBreakdown(old)
+	delta.NewBuffers = plan.NodeBufferBreakdown(new)
+
+	delta.OldBufferReads = delta.OldBuffers.TotalRead()
+	delta.NewBufferReads = delta.NewBuffers.TotalRead()
+	delta.OldBufferHits = delta.OldBuffers.TotalHit()
+	delta.NewBufferHits = delta.NewBuffers.TotalHit()
 	delta.BufferDir = c.bufferDirection(old, new)
 
 	delta.OldSortSpill = old.SortSpaceType == "Disk"
 	delta.NewSortSpill = new.SortSpaceType == "Disk"
+	delta.OldSortSpaceUsed = old.SortSpaceUsed
+	delta.NewSortSpaceUsed = new.SortSpaceUsed
 
 	delta.OldHashBatches = old.HashBatches
 	delta.NewHashBatches = new.HashBatches
@@ -165,6 +170,12 @@ func (c *Comparator) isSignificant(d NodeDelta) bool {
 	if d.OldBufferReads != d.NewBufferReads {
 		return true
 	}
+	if d.OldBuffers != d.NewBuffers {
+		return true
+	}
+	if d.OldSortSpaceUsed != d.NewSortSpaceUsed {
+		return true
+	}
 	if d.OldFilter != d.NewFilter {
 		return true
 	}
@@ -194,8 +205,10 @@ func (c *Comparator) direction(old, new float64, lowerPreference bool) Direction
 }
 
 func (c *Comparator) bufferDirection(old, new *plan.PlanNode) Direction {
-	oldTotal := float64(old.SharedReadBlocks + old.TempReadBlocks + old.TempWrittenBlocks)
-	newTotal := float64(new.SharedReadBlocks + new.TempReadBlocks + new.TempWrittenBlocks)
+	oldBuffers := plan.NodeBufferBreakdown(old)
+	newBuffers := plan.NodeBufferBreakdown(new)
+	oldTotal := float64(oldBuffers.TotalRead() + oldBuffers.TotalWritten())
+	newTotal := float64(newBuffers.TotalRead() + newBuffers.TotalWritten())
 	return c.direction(oldTotal, newTotal, true)
 }
 

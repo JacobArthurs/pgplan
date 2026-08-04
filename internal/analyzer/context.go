@@ -10,6 +10,26 @@ import (
 type PlanContext struct {
 	CTEs     map[string]*CTEInfo
 	AllNodes []*NodeRef
+
+	// BlockSize is the PostgreSQL page size (bytes) used to render block
+	// counts as human-readable sizes in Finding descriptions. Zero means
+	// "use plan.DefaultBlockSize" - see BlockSizeOrDefault.
+	BlockSize int64
+
+	// Analyzed is true when the plan was produced with EXPLAIN ANALYZE, as
+	// determined once at the query level (see Analyze) - not per node, since
+	// a node's own Actual Loops is legitimately 0 for a skipped CASE branch,
+	// excluded partition, etc. even when the query was analyzed.
+	Analyzed bool
+}
+
+// BlockSizeOrDefault returns ctx.BlockSize, falling back to
+// plan.DefaultBlockSize when unset (e.g. contexts built directly by tests).
+func (ctx *PlanContext) BlockSizeOrDefault() int64 {
+	if ctx.BlockSize <= 0 {
+		return plan.DefaultBlockSize
+	}
+	return ctx.BlockSize
 }
 
 type CTEInfo struct {

@@ -9,6 +9,9 @@ type Comparator struct {
 func (c *Comparator) Compare(old, new plan.ExplainOutput) ComparisonResult {
 	rootDelta := c.diffNodes(&old.Plan, &new.Plan)
 
+	oldBuffers := plan.AggregateBuffers(&old.Plan)
+	newBuffers := plan.AggregateBuffers(&new.Plan)
+
 	summary := Summary{
 		OldTotalCost: old.Plan.TotalCost,
 		NewTotalCost: new.Plan.TotalCost,
@@ -26,10 +29,16 @@ func (c *Comparator) Compare(old, new plan.ExplainOutput) ComparisonResult {
 		NewPlanningTime: new.PlanningTime,
 		PlanningDir:     c.direction(old.PlanningTime, new.PlanningTime, true),
 
-		OldTotalReads: old.Plan.SharedReadBlocks + old.Plan.TempReadBlocks,
-		NewTotalReads: new.Plan.SharedReadBlocks + new.Plan.TempReadBlocks,
-		OldTotalHits:  old.Plan.SharedHitBlocks,
-		NewTotalHits:  new.Plan.SharedHitBlocks,
+		OldTotalReads: oldBuffers.TotalRead(),
+		NewTotalReads: newBuffers.TotalRead(),
+		OldTotalHits:  oldBuffers.TotalHit(),
+		NewTotalHits:  newBuffers.TotalHit(),
+
+		OldBuffers: oldBuffers,
+		NewBuffers: newBuffers,
+
+		OldSortSpaceUsed: plan.AggregateSortSpaceUsed(&old.Plan),
+		NewSortSpaceUsed: plan.AggregateSortSpaceUsed(&new.Plan),
 	}
 
 	countChanges(&rootDelta, &summary)

@@ -62,6 +62,10 @@ type PlanNode struct {
 	SharedReadBlocks    int64 `json:"Shared Read Blocks,omitempty"`
 	SharedDirtiedBlocks int64 `json:"Shared Dirtied Blocks,omitempty"`
 	SharedWrittenBlocks int64 `json:"Shared Written Blocks,omitempty"`
+	LocalHitBlocks      int64 `json:"Local Hit Blocks,omitempty"`
+	LocalReadBlocks     int64 `json:"Local Read Blocks,omitempty"`
+	LocalDirtiedBlocks  int64 `json:"Local Dirtied Blocks,omitempty"`
+	LocalWrittenBlocks  int64 `json:"Local Written Blocks,omitempty"`
 	TempReadBlocks      int64 `json:"Temp Read Blocks,omitempty"`
 	TempWrittenBlocks   int64 `json:"Temp Written Blocks,omitempty"`
 

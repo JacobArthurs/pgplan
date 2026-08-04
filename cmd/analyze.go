@@ -40,9 +40,14 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, BUFFER
 		db, _ := cmd.Flags().GetString("db")
 		profileName, _ := cmd.Flags().GetString("profile")
 		format, _ := cmd.Flags().GetString("format")
+		blockSize, _ := cmd.Flags().GetInt64("block-size")
 
 		if format != "text" && format != "json" {
 			return fmt.Errorf("invalid output format %q: must be \"text\" or \"json\"", format)
+		}
+
+		if blockSize <= 0 {
+			return fmt.Errorf("block-size must be positive, got %d", blockSize)
 		}
 
 		connStr, err := profile.ResolveConnStr(db, profileName)
@@ -60,13 +65,13 @@ For SQL input, a database connection is required to run EXPLAIN (ANALYZE, BUFFER
 			return err
 		}
 
-		result := analyzer.Analyze(planOutput)
+		result := analyzer.Analyze(planOutput, blockSize)
 
 		switch format {
 		case "json":
 			return output.RenderJSON(os.Stdout, result)
 		case "text":
-			return output.RenderAnalysisText(os.Stdout, result)
+			return output.RenderAnalysisText(os.Stdout, result, blockSize)
 		}
 
 		return nil
@@ -78,5 +83,6 @@ func init() {
 	analyzeCmd.Flags().StringP("db", "d", "", "PostgreSQL connection string")
 	analyzeCmd.Flags().StringP("profile", "p", "", "Use named profile from config")
 	analyzeCmd.Flags().StringP("format", "f", "text", "Output format: text, json")
+	analyzeCmd.Flags().Int64("block-size", 8192, "PostgreSQL page size in bytes, used to show block counts as human-readable sizes")
 	analyzeCmd.MarkFlagsMutuallyExclusive("db", "profile")
 }
