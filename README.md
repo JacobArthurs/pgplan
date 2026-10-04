@@ -4,7 +4,6 @@
 [![npm](https://img.shields.io/npm/v/pgplan)](https://www.npmjs.com/package/pgplan)
 [![PyPI](https://img.shields.io/pypi/v/pgplan)](https://pypi.org/project/pgplan/)
 [![Go Reference](https://pkg.go.dev/badge/github.com/jacobarthurs/pgplan.svg)](https://pkg.go.dev/github.com/jacobarthurs/pgplan)
-[![Go Report Card](https://goreportcard.com/badge/github.com/jacobarthurs/pgplan)](https://goreportcard.com/report/github.com/jacobarthurs/pgplan)
 [![ci](https://img.shields.io/github/actions/workflow/status/JacobArthurs/pgplan/ci.yml?branch=main)](https://github.com/JacobArthurs/pgplan/actions/workflows/ci.yml)
 [![go version](https://img.shields.io/github/go-mod/go-version/JacobArthurs/pgplan)](./go.mod)
 [![License](https://img.shields.io/github/license/JacobArthurs/pgplan)](LICENSE)
