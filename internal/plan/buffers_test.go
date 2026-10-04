@@ -2,11 +2,6 @@ package plan
 
 import "testing"
 
-// PostgreSQL's per-node Buffers counters are cumulative - a node's reported
-// counts already include everything its descendants did, the same way
-// Actual Total Time does. So AggregateBuffers must read only the root node's
-// own counters, not sum every node in the tree (which would recount a
-// child's I/O once per ancestor level above it).
 func TestAggregateBuffers_UsesRootCountersOnly(t *testing.T) {
 	root := PlanNode{
 		NodeType:            "Hash Join",

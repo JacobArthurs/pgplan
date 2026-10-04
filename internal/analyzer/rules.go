@@ -331,13 +331,6 @@ func checkHashSpill(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext)
 	}}
 }
 
-// checkTempBlocks flags temp file I/O caused by this node specifically.
-// PostgreSQL's Temp Read/Written Blocks counters are cumulative - like
-// Actual Total Time, a node's reported count already includes everything
-// its descendants did - so a wrapping node (e.g. Sort -> Subquery Scan ->
-// Aggregate -> Limit) would otherwise report the exact same total as the
-// descendant that actually spilled, once per ancestor level. Subtracting
-// the immediate children's counts isolates this node's own contribution.
 func checkTempBlocks(node, parent *plan.PlanNode, childIdx int, ctx *PlanContext) []Finding {
 	selfRead := node.TempReadBlocks
 	selfWritten := node.TempWrittenBlocks

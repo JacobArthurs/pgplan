@@ -34,8 +34,6 @@ func (tw *textWriter) printf(format string, args ...any) {
 	_, tw.err = fmt.Fprintf(tw.w, format, args...)
 }
 
-// bytesOf renders blocks as a human-readable size using tw.blockSize
-// (falling back to plan.DefaultBlockSize when unset).
 func (tw *textWriter) bytesOf(blocks int64) string {
 	blockSize := tw.blockSize
 	if blockSize <= 0 {
@@ -44,9 +42,6 @@ func (tw *textWriter) bytesOf(blocks int64) string {
 	return plan.FormatBytes(blocks * blockSize)
 }
 
-// RenderAnalysisText renders result as human-readable text. blockSize is the
-// PostgreSQL page size (bytes) used to show block counts as human-readable
-// sizes; pass <= 0 to use plan.DefaultBlockSize.
 func RenderAnalysisText(w io.Writer, result analyzer.AnalysisResult, blockSize int64) error {
 	tw := &textWriter{w: w, blockSize: blockSize}
 
@@ -152,9 +147,6 @@ func severityFormat(s analyzer.Severity) (string, string) {
 	}
 }
 
-// RenderComparisonText renders result as human-readable text. blockSize is
-// the PostgreSQL page size (bytes) used to show block counts as
-// human-readable sizes; pass <= 0 to use plan.DefaultBlockSize.
 func RenderComparisonText(w io.Writer, result comparator.ComparisonResult, blockSize int64) error {
 	tw := &textWriter{w: w, blockSize: blockSize}
 	s := result.Summary
@@ -294,8 +286,6 @@ func (tw *textWriter) renderMetricLineInt(indent, label string, oldVal, newVal i
 	tw.printf("%s  %s: %d → %d (%+.1f%%)\n", indent, label, oldVal, newVal, pct)
 }
 
-// renderMetricLineCount formats a row/count metric that may be fractional
-// (PostgreSQL averages some "actual" counts across loop iterations).
 func (tw *textWriter) renderMetricLineCount(indent, label string, oldVal, newVal, pct float64) {
 	tw.printf("%s  %s: %s → %s (%+.1f%%)\n", indent, label, formatCount(oldVal), formatCount(newVal), pct)
 }
@@ -398,12 +388,6 @@ func formatDelta(oldVal, newVal, pct float64, dir comparator.Direction, fmtStr s
 	return fmt.Sprintf("%s → %s%s %s (%+.1f%%)%s", oldStr, color, newStr, arrow, pct, colorReset)
 }
 
-// formatIntDelta renders an old→new block/kB count with the same
-// "value → colored value arrow (+pct%)" shape as formatDelta. Unlike
-// dirArrow, the arrow always tracks the actual numeric direction (↓ for a
-// decrease, ↑ for an increase); lowerIsBetter only controls whether that
-// direction is colored as an improvement (reads, writes, sort volume) or a
-// regression (cache hits).
 func formatIntDelta(oldVal, newVal int64, lowerIsBetter bool) string {
 	pct := pctChange(float64(oldVal), float64(newVal))
 
@@ -457,8 +441,6 @@ func pctChange(old, new float64) float64 {
 	return ((new - old) / old) * 100
 }
 
-// formatDurationDelta renders a millisecond delta as a signed hh:mm:ss.ms
-// duration, e.g. "-00:00:00.049".
 func formatDurationDelta(deltaMs float64) string {
 	sign := "+"
 	if deltaMs < 0 {

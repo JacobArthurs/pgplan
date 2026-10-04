@@ -12,7 +12,7 @@ func TestFormatBytes(t *testing.T) {
 		{1024, "1.0 kB"},
 		{1536, "1.5 kB"},
 		{1024 * 1024, "1.0 MB"},
-		{6_373_908_480, "5.9 GB"}, // 778065 blocks * 8192 bytes, from the real plan that motivated this feature
+		{6_373_908_480, "5.9 GB"},
 		{1024 * 1024 * 1024 * 1024, "1.0 TB"},
 	}
 
@@ -24,8 +24,6 @@ func TestFormatBytes(t *testing.T) {
 }
 
 func TestFormatBytes_BlockSizeConversion(t *testing.T) {
-	// 778065 blocks at the default 8kB page size is what a real HashAggregate
-	// disk spill looked like - this pins the block-size -> bytes conversion.
 	got := FormatBytes(778065 * DefaultBlockSize)
 	want := "5.9 GB"
 	if got != want {

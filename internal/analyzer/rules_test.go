@@ -427,11 +427,6 @@ func TestTempBlocks_NoTempIO(t *testing.T) {
 	requireNoFindings(t, findings)
 }
 
-// PostgreSQL's Temp Read/Written Blocks are cumulative (inclusive of
-// descendants), so a pass-through wrapper node reports the exact same
-// total as the child that actually spilled. checkTempBlocks must subtract
-// the child's contribution and report only the parent's own (zero, here),
-// instead of re-flagging the same spill at every ancestor level.
 func TestTempBlocks_PassThroughParentReportsNoSelfContribution(t *testing.T) {
 	parent := &plan.PlanNode{
 		NodeType:          "Limit",
