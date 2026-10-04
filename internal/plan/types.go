@@ -15,7 +15,7 @@ type PlanNode struct {
 	ActualStartupTime float64 `json:"Actual Startup Time,omitempty"`
 	ActualTotalTime   float64 `json:"Actual Total Time,omitempty"`
 	ActualRows        float64 `json:"Actual Rows,omitempty"`
-	ActualLoops int64   `json:"Actual Loops,omitempty"`
+	ActualLoops       int64   `json:"Actual Loops,omitempty"`
 
 	// Relation/index info
 	Schema        string `json:"Schema,omitempty"`
