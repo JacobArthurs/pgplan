@@ -224,7 +224,7 @@ func TestDiffNodes_BufferBreakdown(t *testing.T) {
 	if delta.OldBuffers.Temp.Written != 30 || delta.NewBuffers.Temp.Written != 0 {
 		t.Errorf("Temp.Written = %d → %d, want 30 → 0", delta.OldBuffers.Temp.Written, delta.NewBuffers.Temp.Written)
 	}
-	if delta.OldBufferReads != 1070 { // shared 1000 + local 50 + temp 20
+	if delta.OldBufferReads != 1070 {
 		t.Errorf("OldBufferReads = %d, want 1070", delta.OldBufferReads)
 	}
 	if delta.NewBufferReads != 100 {
@@ -360,16 +360,12 @@ func TestCompare_BasicComparison(t *testing.T) {
 	}
 }
 
-// PostgreSQL's per-node Buffers counters are cumulative (inclusive of
-// children), so the plan-wide Summary must read them from the root node
-// only. SortSpaceUsed is the opposite - independent per-operation memory -
-// so it must sum across every sort/hash node in the tree.
 func TestCompare_SummaryBuffersAndSortVolume(t *testing.T) {
 	c := defaultComparator()
 	old := plan.ExplainOutput{
 		Plan: plan.PlanNode{
 			NodeType:          "Sort",
-			SharedReadBlocks:  100, // already includes the child's contribution, per PG semantics
+			SharedReadBlocks:  100,
 			LocalReadBlocks:   10,
 			TempWrittenBlocks: 5,
 			SortSpaceUsed:     2048,
@@ -418,7 +414,7 @@ func TestCompare_SummaryBuffersAndSortVolume(t *testing.T) {
 	if s.OldSortSpaceUsed != 2048 || s.NewSortSpaceUsed != 64 {
 		t.Errorf("SortSpaceUsed = %d → %d, want 2048 → 64", s.OldSortSpaceUsed, s.NewSortSpaceUsed)
 	}
-	if s.OldTotalReads != 110 { // shared 100 + local 10, root's own counters
+	if s.OldTotalReads != 110 {
 		t.Errorf("OldTotalReads = %d, want 110", s.OldTotalReads)
 	}
 	if s.NewTotalHits != 200 {

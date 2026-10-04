@@ -7,10 +7,6 @@ import (
 	"github.com/jacobarthurs/pgplan/internal/plan"
 )
 
-// Buffers must come from the root node's own (cumulative, inclusive-of-
-// children) counters, not a sum across the tree - see AggregateBuffers.
-// SortSpaceUsed is the opposite: it's per-operation memory, not cumulative,
-// so it must sum across every sort/hash node in the tree.
 func TestAnalyze_AggregatesBuffersAndSortVolume(t *testing.T) {
 	output := plan.ExplainOutput{
 		Plan: plan.PlanNode{
@@ -134,8 +130,6 @@ func TestAnalyze_ActualRows_PresentWhenAnalyzed(t *testing.T) {
 }
 
 func TestAnalyze_ActualRows_AbsentWithoutAnalyze(t *testing.T) {
-	// A plain EXPLAIN (no ANALYZE) never populates Actual Loops/Rows, nor
-	// the top-level Planning/Execution Time.
 	output := plan.ExplainOutput{
 		Plan: plan.PlanNode{
 			NodeType:  "Seq Scan",
@@ -154,19 +148,13 @@ func TestAnalyze_ActualRows_AbsentWithoutAnalyze(t *testing.T) {
 	}
 }
 
-// A node with ActualLoops == 0 (a skipped CASE branch, an excluded
-// partition, etc.) does not mean the query wasn't analyzed - "analyzed" is
-// determined once at the query level (ctx.Analyzed), not by looking at that
-// node's own Actual Loops.
 func TestWalkTree_SkippedNodeStillReportedAsAnalyzed(t *testing.T) {
 	node := plan.PlanNode{
-		// Partition pruned/excluded at execution time: PostgreSQL reports
-		// this with Actual Loops 0, even though the query was analyzed.
 		NodeType:      "Seq Scan",
 		RelationName:  "partition_2025",
 		ActualRows:    0,
 		ActualLoops:   0,
-		SortSpaceType: "Disk", // forces checkSortSpill to fire regardless of row counts
+		SortSpaceType: "Disk",
 	}
 	ctx := &PlanContext{Analyzed: true}
 

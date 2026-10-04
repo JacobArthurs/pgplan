@@ -6,15 +6,7 @@ import (
 	"github.com/jacobarthurs/pgplan/internal/plan"
 )
 
-// Analyze evaluates output against the default rule set. blockSize is the
-// PostgreSQL page size (bytes) used to render block counts in Finding
-// descriptions as human-readable sizes; omit it (or pass <= 0) to use
-// plan.DefaultBlockSize.
 func Analyze(output plan.ExplainOutput, blockSize ...int64) AnalysisResult {
-	// Planning/Execution Time are only present in the JSON when ANALYZE was
-	// used. Determined once at the query level rather than per node: a
-	// node's own Actual Loops is legitimately 0 for a skipped CASE branch,
-	// excluded partition, etc. even when the query was analyzed.
 	analyzed := output.PlanningTime > 0 || output.ExecutionTime > 0
 
 	result := AnalysisResult{

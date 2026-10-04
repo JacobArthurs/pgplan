@@ -298,16 +298,6 @@ func TestParseJSONPlan_IndexScanFields(t *testing.T) {
 }
 
 func TestParseJSONPlan_FractionalActualRows(t *testing.T) {
-	// PostgreSQL computes "Actual Rows" as total rows / nloops and always
-	// prints it with 2 decimal digits, so it can be fractional (e.g.
-	// 3079.00) when Actual Loops > 1. "Rows Removed by Filter"/"Rows
-	// Removed by Join Filter" go through the same per-loop division
-	// (show_instrumentation_count in explain.c) but are printed with 0
-	// decimal digits, so PostgreSQL never emits a fractional value for
-	// them — they stay plain integers here. Mixes plain-integer and
-	// fractional JSON numbers across sibling nodes (and Plan Rows/Actual
-	// Loops, which stay integer-only) to confirm both representations
-	// unmarshal correctly side by side.
 	input := `[{
 		"Plan": {
 			"Node Type": "Nested Loop",
@@ -374,11 +364,6 @@ func TestParseJSONPlan_FractionalActualRows(t *testing.T) {
 	}
 }
 
-// TestParseJSONPlan_FractionalActualRowsAcrossNodeTypes confirms the fix is
-// not node-type-specific: PostgreSQL computes "Actual Rows" as
-// ntuples/nloops and formats it with 2 decimal digits identically for every
-// node type in ExplainNode(), so any node type can produce a fractional
-// value when Actual Loops > 1 and the division doesn't come out even.
 func TestParseJSONPlan_FractionalActualRowsAcrossNodeTypes(t *testing.T) {
 	nodeTypes := []struct {
 		nodeType string

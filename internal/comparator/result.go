@@ -88,21 +88,20 @@ type NodeDelta struct {
 	OldWorkersPlanned  int
 	NewWorkersPlanned  int
 
-	// Buffers (aggregated across all categories)
+	// Buffers (aggregated)
 	OldBufferReads int64 // Shared + Local + Temp reads
 	NewBufferReads int64
-	OldBufferHits  int64 // Shared + Local hits
+	OldBufferHits  int64
 	NewBufferHits  int64
 	BufferDir      Direction
 
-	// Buffers (full shared/local/temp x hit/read/dirtied/written breakdown)
 	OldBuffers plan.NodeBuffers
 	NewBuffers plan.NodeBuffers
 
 	OldSortSpill     bool
 	NewSortSpill     bool
-	OldSortSpaceUsed int64 // kB
-	NewSortSpaceUsed int64 // kB
+	OldSortSpaceUsed int64
+	NewSortSpaceUsed int64
 	OldHashBatches   int
 	NewHashBatches   int
 
@@ -145,20 +144,16 @@ type Summary struct {
 	NodesModified    int
 	NodesTypeChanged int
 
-	OldTotalReads int64 // Shared + Local + Temp reads
+	OldTotalReads int64
 	NewTotalReads int64
-	OldTotalHits  int64 // Shared + Local hits
+	OldTotalHits  int64
 	NewTotalHits  int64
 
-	// Buffers (full shared/local/temp x hit/read/dirtied/written breakdown
-	// for the whole plan). PostgreSQL's per-node counters are cumulative
-	// (inclusive of children), so these are the root node's own counters,
-	// not a sum across the tree - see plan.AggregateBuffers.
 	OldBuffers plan.NodeBuffers
 	NewBuffers plan.NodeBuffers
 
-	OldSortSpaceUsed int64 // kB, summed across all sort nodes
-	NewSortSpaceUsed int64 // kB
+	OldSortSpaceUsed int64
+	NewSortSpaceUsed int64
 
 	Verdict string
 }

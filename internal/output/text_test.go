@@ -34,8 +34,6 @@ func TestFormatIntDelta_LowerIsBetter_Increase(t *testing.T) {
 }
 
 func TestFormatIntDelta_HigherIsBetter_Increase(t *testing.T) {
-	// e.g. cache hits: going up is an improvement, and the arrow must track
-	// the actual numeric direction (↑), not the "improved" direction.
 	got := formatIntDelta(10, 600, false)
 	if !strings.Contains(got, "↑") {
 		t.Errorf("formatIntDelta(10, 600, false) = %q, want an ↑ arrow tracking the increase", got)
@@ -135,10 +133,10 @@ func TestRenderComparisonText_BufferSummaryIncludesPercentages(t *testing.T) {
 	out := buf.String()
 
 	for _, want := range []string{
-		"I/O Read:", "-98.9%", // total: 920 -> 10
-		"-98.8%",                 // shared read: 800 -> 10
-		"-100.0%",                // local read: 20 -> 0 (also matches temp read: 100 -> 0)
-		"Cache Hit:", "+5900.0%", // total and shared hit: 10 -> 600
+		"I/O Read:", "-98.9%",
+		"-98.8%",
+		"-100.0%",
+		"Cache Hit:", "+5900.0%",
 		"Sort Volume:", "-98.4%",
 	} {
 		if !strings.Contains(out, want) {
